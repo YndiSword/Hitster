@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Hitster – magyar kiadás</title>
+<title>Hitster</title>
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; font-family: system-ui, sans-serif; background: #14121f; color: #f2eefc; }
@@ -45,18 +45,24 @@
 </head>
 <body>
 <main>
-  <h1>Hitster – magyar kiadás</h1>
+  <h1>Hitster</h1>
 
   <!-- BEÁLLÍTÁS -->
   <section id="setup" class="panel">
     <h2>Szóló játék</h2>
     <p>Kapsz egy felfordított kezdőkártyát, utána 10 dalt kell az idővonaladon a helyére tenned. Számít, hány sikerül, és mennyi idő alatt.</p>
+    <label for="packSel">Pakli</label>
+    <select id="packSel" style="font:inherit;padding:10px;border-radius:8px;border:1px solid #443d63;background:#1e1b2e;color:inherit;width:100%">
+      <option value="hu">Magyar kiadás</option>
+      <option value="int">Nemzetközi (angol nyelvű)</option>
+      <option value="mix">Vegyes (mindkettő)</option>
+    </select>
     <p id="record" class="muted"></p>
     <div class="row">
       <button id="startBtn">Új játék</button>
       <button id="resumeBtn" class="ghost hidden">Mentett játék folytatása</button>
     </div>
-    <p class="muted">308 dal a magyar kiadásból, YouTube-ról. Ha egy videó nem indul el, a „Másik dal” gomb újat húz, a kör nem vész el. Az óra akkor indul, amikor a dal megszólal, és a felfedésnél áll meg. A kezdőkártyát kék keret jelöli.</p>
+    <p class="muted" id="packInfo"></p>
   </section>
 
   <!-- JÁTÉK -->
@@ -407,14 +413,1025 @@ const RAW = `1|Billy Joel|1983|Uptown Girl|H6M0EulApMM
 307|Koncz Zsuzsa|1978|Keresem a szót|5w62kyfs_RI
 308|Honeybeast|2014|A legnagyobb hős|TMfL-0IwgtE`;
 
-const SONGS = RAW.split('\n').map(line => {
-  const [n, artist, year, title, yt] = line.split('|');
-  return { n: +n, artist, year: +year, title, yt };
-});
+// Nemzetközi pakli: Hitster Canada, Rock, Guilty Pleasures és Summer Party (DE) angol nyelvű dalai, duplikátumok nélkül.
+// Formátum: előadó|év|cím|YouTube-azonosító
+const INT_RAW = `Led Zeppelin|1973|D'yer Mak'er|SBmBhZB0x3k
+Glass Tiger|1986|Don't Forget Me (When I'm Gone)|JG2IFsz_n5c
+Sister Sledge|1979|We Are Family|uyGY2NfYpeE
+Brian Hyland|1960|Itsy Bitsy Teenie Weenie Yellow Polka Dot Bikini|ICkWjdQuK7Q
+Sia|2015|Cheap Thrills|31crA53Dgu0
+Daft Punk feat. Pharrell Williams & Nile Rodgers|2013|Get Lucky|5NV6Rdv1a3I
+Alicia Keys|2001|Fallin'|Urdlvw0SSEc
+Milli Vanilli|1989|Girl You Know It's True|RdSmokR0Enk
+The Tragically Hip|1989|New Orleans Is Sinking|LAZUsCONjIQ
+ABBA|1974|Waterloo|Sj_9CiNkkn4
+Erma Franklin|1967|Piece Of My Heart|i_6gptd01mY
+Guns N' Roses|1987|Sweet Child O' Mine|1w7OgIMMRc4
+Scorpions|1984|Rock You Like a Hurricane|6yP1tcy9a10
+The Police|1983|Every Breath You Take|OMOGaugKpzs
+Vanilla Ice|1990|Ice Ice Baby|rog8ou-ZepE
+Eric Prydz|2004|Call On Me|L_fCqg92qks
+Billy Idol|1982|White Wedding|DP8A3ZfwYj0
+U2|1987|With Or Without You|ujNeHIo7oTE
+Charlotte Cardin|2017|Main Girl|8Xef2NPzGp0
+The Platters|1958|Smoke Gets In Your Eyes|vfBboBz3yoc
+Portugal. The Man|2017|Feel It Still|pBkHHoOIIn8
+OneRepublic|2013|Counting Stars|hT_nvWreIhg
+Ray Charles|1961|Hit The Road Jack|SrnWp5O0DEs
+Bruno Mars|2011|The Lazy Song|fLexgOxsZu0
+Snow|1992|Informer|TSffz_bl6zo
+Rednex|1994|Cotton Eye Joe|mOYZaiDZ7BM
+Alessia Cara|2016|Scars To Your Beautiful|MWASeaYuHZo
+Diana Ross|1980|Upside Down|5zyidkj2fpo
+Vanessa Carlton|2002|A Thousand Miles|Cwkej79U3ek
+Jim Croce|1973|Bad, Bad Leroy Brown|JzYf6qskdfA
+Alicia Keys|2007|No One|rywUS-ohqeE
+James Brown|1965|I Got You (I Feel Good)|pTdihu-mp90
+Heart|1977|Barracuda|VdOkQ6THDVw
+Alice Cooper|1972|School's Out|RWgTD_0jxeE
+The Archies|1969|Sugar, Sugar|5rmwDnOozWU
+Chic|1978|Le Freak|7KP7bdFv_qg
+Bill Medley & Jennifer Warnes|1987|(I've Had) The Time Of My Life|4BQLE_RrTSU
+Patrick Hernandez|1978|Born To Be Alive|9UaJAnnipkY
+Bryan Adams|1984|Heaven|vf3zFvcKQkw
+BTS|2020|Dynamite|Mzk6KkyxXC8
+Nirvana|1991|Smells Like Teen Spirit|hTWKbfoikeg
+Rick Astley|1987|Never Gonna Give You Up|dQw4w9WgXcQ
+Amii Stewart|1979|Knock On Wood|oLS57N4kUN0
+Céline Dion|1997|My Heart Will Go On|p79GmLNLMrY
+Nancy Sinatra|1965|These Boots Are Made For Walkin'|TDmidrIDB4o
+Outkast|2003|Hey Ya!|RqIRp4QE-1k
+Mungo Jerry|1970|In The Summertime|wvUQcnfwUUM
+Gin Blossoms|1996|Follow You Down|5LuH0ywYVQc
+The Bangles|1986|Manic Monday|SsmVgoXDq2w
+Sean Paul|2003|Get Busy|oPQ3o14ksaM
+Mabel|2019|Don't Call Me Up|V35iQO30Xys
+Train|2009|Hey, Soul Sister|kVpv8-5XWOI
+The Arrows|1975|I Love Rock 'N Roll|cJzPLhDf3-8
+The Monkees|1966|I'm A Believer|4PQAqprjOuA
+Keith Urban|2002|Somebody Like You|eiBinM-f-Pk
+Corona|1993|The Rhythm Of The Night|OnT58cIJSpw
+Lorde|2012|Royals|nlcIKh6sBtc
+Alanis Morissette|1995|Ironic|H4bIXVTsJck
+Miley Cyrus|2013|Wrecking Ball|mRFHAvdwXXs
+Tommy James And The Shondells|1968|Mony Mony|X_OoEx9WOl8
+Four Tops|1965|I Can't Help Myself (Sugar Pie, Honey Bunch)|_Z2lWY-wkRs
+Vicki Sue Robinson|1976|Turn the Beat Around|vz9pZW5OvM4
+Hot Chocolate|1975|You Sexy Thing|iD4ympXPrWs
+John Legend|2013|All Of Me|450p7goxZqg
+Lady Gaga|2008|Poker Face|bESGLojNYSo
+Chumbawamba|1997|Tubthumping|2H5uWRjFsGc
+Leonard Cohen|1988|Everybody Knows|Gxd23UVID7k
+Mark Morrison|1996|Return Of The Mack|1ZfjB5P7RS0
+Hall & Oates|1977|Rich Girl|AmHE65RAkSY
+Muse|2009|Uprising|w8KQmps-Sog
+Michael Bublé|2009|Haven't Met You Yet|rqthwCypho4
+Eagles|1976|Hotel California|BciS5krYL80
+Chuck Berry|1958|Johnny B. Goode|Uf4rxCB4lys
+Daryl Hall & John Oates|1982|Maneater|yRYFKcMa_Ek
+Marshmello & Bastille|2018|Happier|m7Bc3pLyij0
+The B-52's|1989|Love Shack|9SOryJvTAGs
+Thelma Houston|1976|Don't Leave Me This Way|rUdw7V-FC_Q
+Leo Sayer|1977|When I Need You|obC0MFHWJ0A
+Neil Diamond|1969|Sweet Caroline|4F_RCWVoL4s
+Robbie Williams|2002|Feel|eK_tpyqtnsg
+Glenn Miller|1939|In The Mood|dVh3ZzVDZik
+Bruce Springsteen|1984|Dancing in The Dark|8cNS_Mecbw8
+Avicii feat. Sandro Cavazza|2017|Without You|WRz2MxhAdJo
+Usher feat. Lil Jon & Ludacris|2004|Yeah!|GxBSyx85Kp8
+Culture Beat|1993|Mr. Vain|V3qUoiwr5kQ
+Mark Ronson feat. Bruno Mars|2014|Uptown Funk|OPf0YbXqDm0
+Roxette|1991|Joyride|xCorJG9mubk
+Bill Haley & His Comets|1954|(We're Gonna) Rock Around The Clock|Ud_JZcC0tHI
+Lipps Inc.|1980|Funkytown|Z6dqIYKIBSU
+Richard Marx|1989|Right Here Waiting|S_E2EHVxNAE
+Bronski Beat|1984|Smalltown Boy|88sARuFu-tc
+Cream|1968|White Room|ond4Wp9nPhM
+Neneh Cherry|1988|Buffalo Stance|rFXhBEj6mEE
+Savage Garden|1996|I Want You|HQt6jIKNwgU
+Red Hot Chili Peppers|1991|Under The Bridge|GLvohMXgcBo
+The Script|2014|Superheroes|0y7ygEDRpSo
+Oasis|1995|Wonderwall|FVdjZYfDuLE
+The Supremes|1966|You Can't Hurry Love|ovoBi3pXD_A
+Amy Winehouse|2006|Rehab|KUmZp8pR1uc
+Toto|1982|Africa|FTQbiNvZqaY
+Nickelback|2001|How You Remind Me|hhSLkkLl750
+Cher|1989|If I Could Turn Back Time|_eorELNxxrU
+Bill Haley & His Comets|1956|See You Later, Alligator|NMP6IGJXG3o
+Bee Gees|1977|Stayin' Alive|fNFzfwLM72c
+Coolio feat. L.V.|1995|Gangsta's Paradise|Tw0_qHNRAEA
+Supertramp|1974|School|JgJRM_8GWHg
+Dire Straits|1985|Walk Of Life|h2a20YL5mvg
+Elvis Presley|1957|Jailhouse Rock|PpsUOOfb-vE
+Betty Everett|1964|It's In His Kiss (The Shoop Shoop Song)|B4KN6TFhy2I
+Morgan Wallen|2022|Wasted On You|KE35_SlTdn4
+Lukas Graham|2015|7 Years|LHCob76kigA
+Harry Belafonte|1956|Day-O (The Banana Boat Song)|YO7M0Hx_1D8
+The Weeknd|2019|Blinding Lights|fHI8X4OXluQ
+The Coasters|1958|Yakety Yak|epCN0f7FTIY
+Beyoncé feat. Jay-Z|2003|Crazy In Love|ViwtNLUqkMY
+Linkin Park|2007|What I've Done|Jrprk5dNboI
+Aretha Franklin|1967|Respect|9iayJ8u4Qew
+Manfred Mann|1964|Do Wah Diddy Diddy|1UingsUi0mI
+Robin Thicke feat. T.I. & Pharrell|2013|Blurred Lines|zwT6DZCQi9k
+Rihanna feat. Jay-Z|2007|Umbrella|crVOEJ2FwLE
+Cliff Richard|1968|Congratulations|770f-pwPe4o
+Duck Sauce|2010|Barbra Streisand|rZZGsRD1aJI
+Bobby Darin|1959|Dream Lover|wVHAQX5sSaU
+Corey Hart|1985|Never Surrender|-4pg6Jh94Lo
+Vengaboys|1998|We Like To Party!|6Zbi0XmGtMw
+Steppenwolf|1968|Born To Be Wild|igvP806798U
+Cher|1998|Believe|nZXRV4MezEw
+Metallica|1986|Master Of Puppets|E0ozmU9cJDg
+Rush|1981|Tom Sawyer|6QsXhH93QAs
+The Killers|2003|Mr. Brightside|pvIJyRkS9y0
+Tracy Chapman|1988|Fast Car|AIOAlaACuv4
+Genesis|1991|No Son Of Mine|KZbHcAPsllE
+Aerosmith|1994|Crazy|DU5fiwedSCk
+Journey|1981|Don't Stop Believin'|1k8craCGpgs
+Justin Bieber|2022|Ghost|Fp8msa5uYsc
+Pet Shop Boys|1988|Domino Dancing|ik2YF05iX2w
+Eurythmics|1983|Sweet Dreams (Are Made Of This)|eRhg7qPLeN8
+The Verve|1997|Bitter Sweet Symphony|1lyu1KKwC74
+Faithless|1998|God Is A DJ|bhSB8EEnCAM
+Aqua|1997|Barbie Girl|eLXXFVNFKww
+Kay Starr|1951|Wheel Of Fortune|OeIce5NsWKk
+Natalie Imbruglia|1997|Torn|UOJkzcJigGI
+Little Eva|1962|The Loco-Motion|24Neyv2crh4
+The Everly Brothers|1957|Bye Bye Love|LRyrWN-fftE
+Olivia Rodrigo|2021|Drivers License|tNJhkrpLGT8
+Miley Cyrus|2023|Flowers|7V3jqsIe8c0
+Icona Pop feat. Charli XCX|2012|I Love It|W50HtcPAeSs
+Twenty One Pilots|2015|Stressed Out|pXRviuL6vMY
+Shania Twain|1998|That Don't Impress Me Much|mqFLXayD6e8
+Moby|1999|Porcelain|KtsVN__gPvQ
+Frankie Valli & The Four Seasons|1975|December, 1963 (Oh, What a Night)|mTUhnIY3oRM
+Lynyrd Skynyrd|1974|Sweet Home Alabama|-p8GXZcdrIk
+Shawn Mendes & Camila Cabello|2019|Señorita|dFp_b5DPIIo
+The Smashing Pumpkins|1995|1979|Lr58WHo2ndM
+Belinda Carlisle|1987|Heaven Is A Place On Earth|NOGEyBeoBGM
+Stevie Wonder|1970|Signed, Sealed, Delivered (I'm Yours)|inXC_lab-34
+Marvin Gaye|1968|I Heard It Through The Grapevine|VWG3npfEoHo
+Creedence Clearwater Revival|1971|Have You Ever Seen The Rain?|bO28lB1uwp4
+The Trammps|1976|Disco Inferno|u5lSeYd_riw
+Tears For Fears|1984|Shout|Ye7FKc1JQe4
+John Mellencamp|1982|Hurts So Good|4dOsbsuhYGQ
+Starship|1985|We Built This City|NtM3jjLP7AE
+Sam The Sham & The Pharaohs|1965|Wooly Bully|KZJiGu6Gz8E
+Coldplay|2008|Viva La Vida|dvgZkm1xWPE
+George Michael|1988|Faith|6Cs3Pvmmv0E
+Haddaway|1993|What Is Love|OFNrN_6Ta5I
+Gotye feat. Kimbra|2011|Somebody That I Used To Know|2FZZK8gBBOI
+Duffy|2008|Mercy|eJCrb1oNbH4
+Whitney Houston|1987|I Wanna Dance With Somebody (Who Loves Me)|id2-K3daNRQ
+Barry White|1974|You're The First, The Last, My Everything|E7zmRvhFEYo
+Owl City|2009|Fireflies|QBgl4rVz3Ks
+The O'Jays|1975|Love Train|2vTKmVvyNRc
+The Kinks|1970|Lola|LemG0cvc4oU
+Harry Styles|2020|Watermelon Sugar|7-x3uD5z1bQ
+No Doubt|1996|Don't Speak|1leInEAlbjY
+Destiny's Child|2001|Survivor|lXAdAa4ZuuY
+The Lumineers|2012|Ho Hey|R6UqE6JzNLA
+Kesha|2010|We R Who We R|tCkGsyOYDMI
+Montell Jordan|1995|This Is How We Do It|mTY31zVUqfs
+Billy Talent|2006|Red Flag|1XAn5Gbrcs4
+P!nk feat. Nate Ruess|2012|Just Give Me A Reason|OpQFFLBMEPI
+Tina Turner|1989|The Best|GC5E8ie2pdM
+Roxette|1988|The Look|LlVI7ZNiFlI
+Backstreet Boys|1999|I Want It That Way|-aKJE1lanQk
+Neil Diamond|1967|Girl, You'll Be A Woman Soon|K_fZCD93LzQ
+Johnny Cash|1963|Ring Of Fire|1WaV2x8GXj0
+Reel 2 Real feat. The Mad Stuntman|1993|I Like To Move It|vuo8kD5zF5I
+AC/DC|1990|Thunderstruck|v2AC41dglnM
+LMFAO feat. Lauren Bennett & GoonRock|2011|Party Rock Anthem|zIh5AHxh-Ok
+Meghan Trainor|2014|All About That Bass|Fccz4gz5erM
+Stereophonics|2001|Have A Nice Day|tgkeg5sjPP4
+Shakira|2010|Waka Waka (This Time For Africa)|rjJKXxUx2PU
+Daft Punk|2000|One More Time|A2VpR8HahKc
+Pharrell Williams|2013|Happy|ZbZSe6N_BXs
+The Rolling Stones|1981|Start Me Up|ZzlgJ-SfKYE
+The Champs|1958|Tequila|U_JFLb1IItM
+Dr. Alban|1993|Sing Hallelujah!|pKxJca7LLNM
+Irene Cara|1983|Flashdance... What A Feeling|ILWSp0m9G2U
+Rihanna feat. Drake|2016|Work|xizkel_Jrdo
+Def Leppard|1987|Pour Some Sugar On Me|eiOIDqRKo0Y
+Limahl|1984|Never Ending Story|2WN0T-Ee3q4
+Major Lazer & DJ Snake feat. MØ|2015|Lean On|rn9AQoI7mYU
+Sam Cooke|1960|(What A) Wonderful World|R4GLAKEjU4w
+Collective Soul|1995|December|mJPkIcYfrAA
+The Rembrandts|1995|I'll Be There for You|q-9kPks0IfE
+Gene Vincent|1956|Be-Bop-A-Lula|sQL_Bv8nbDo
+R.E.M.|1992|Everybody Hurts|mhIay4-PbCY
+Depeche Mode|1990|Policy Of Truth|7smG_3QdYtw
+Hanson|1997|MMMBop|XEebGBGZwj8
+Kelly Clarkson|2005|Because Of You|Ra-Om7UMSJc
+Britney Spears|2000|Oops!... I Did It Again|OO0aTOIU_3w
+Duran Duran|1985|A View to a Kill|Fp4CR2HcHLQ
+Crowded House|1986|Don't Dream It's Over|xwsaVHiiFQ8
+The Cranberries|1994|Zombie|8sM-rm4lFZg
+The Offspring|1994|Self Esteem|EtNZnhxWLHo
+Billy Joel|1973|Piano Man|QwVjTlTdIDQ
+Madonna|1983|Holiday|h4bP9tj_0Zk
+Sean Kingston|2007|Beautiful Girls|v7EgkZnYRZE
+Jan & Dean|1963|Surf City|ERrwjR4ZlfI
+Pearl Jam|1991|Alive|wGiTPgvKktM
+Fatboy Slim|1998|Praise You|ruAi4VBoBSM
+Kate Bush|1985|Running Up That Hill (A Deal With God)|HYwNM1t9ltI
+The Beach Boys|1963|Surfin' U.S.A.|KcZn05qxVgg
+The Mamas & the Papas|1966|Monday, Monday|VsIjOKCxRSE
+Taio Cruz|2011|Hangover|hToYLtkLwlw
+Dion|1961|The Wanderer|SbYa7NBYyRc
+Eric Clapton|1992|Tears In Heaven|ZqtyQuXo9zM
+Corinne Bailey Rae|2006|Put Your Records On|E-_JcJiUOII
+Rupert Holmes|1979|Escape (The Piña Colada Song)|FXG_I_tf_i4
+Christina Aguilera|1999|Genie In A Bottle|kIDWgqDBNXA
+Gloria Gaynor|1978|I Will Survive|6dYWe1c3OyU
+Taio Cruz|2010|Dynamite|kJNyjdpT1vo
+Blondie|1978|Heart Of Glass|WGU_4-5RaxU
+The Guess Who|1970|American Woman|9uf6EY2BZBw
+Toni Braxton|1996|Un-Break My Heart|p2Rch6WvPJE
+Bobby Vinton|1963|Blue Velvet|icfq_foa5Mo
+Sinéad O'Connor|1990|Nothing Compares 2 U|0-EF60neguk
+Green Day|2005|Holiday|l2hA8g1cNvQ
+Queen & David Bowie|1981|Under Pressure|nbwn21TU4ec
+Nelly Furtado|2000|I'm Like A Bird|z_6_XTv4F_g
+Ray Charles|1954|I've Got A Woman|CnI_LuCJ4Ek
+Sum 41|2004|Pieces|E3oDVDyOrAQ
+Justin Bieber|2021|Anyone|Yxpyo4nCvKY
+Chubby Checker|1960|The Twist|-CCgDvUM4TM
+Spice Girls|1997|Stop|jlh9JKRGQaQ
+Cyndi Lauper|1986|True Colors|2ecaYj14z3M
+Jennifer Lopez|1999|If You Had My Love|tT5g7I-Itc8
+Laura Branigan|1984|Self Control|FQD0yGuZ2N8
+Harry Styles|2022|As It Was|H5v3kku4y6Q
+Dua Lipa|2020|Break My Heart|Nj2U6rhnucI
+The Byrds|1965|Mr. Tambourine Man|oecX_1pqxk0
+Van Halen|1992|Right Now|DLQawHJ38Sc
+Cardi B, Bad Bunny & J Balvin|2018|I Like It|xTlNMmZKwpA
+Pink Floyd|1980|Run Like Hell|qDPRWQd2TE4
+Akon|2004|Lonely|JISlh7et1w4
+The Turtles|1967|Happy Together|pSw8an1u3rc
+Fats Domino|1955|Ain't That A Shame|I6JZW7zMDfY
+Ace Of Base|1992|All That She Wants|7VBI2wcKxGU
+Lenny Kravitz|1998|Fly Away|EvuL5jyCHOw
+Shaggy|2000|It Wasn't Me|U48fb7Nx1A8
+Culture Club|1983|Karma Chameleon|JFvXvV0oZIo
+Jay-Z & Linkin Park|2004|Numb/Encore|_1oO4wzPCmE
+Mary J. Blige|2001|Family Affair|1wh_UYUA0oA
+Tones And I|2019|Dance Monkey|1__CAdTJ5JU
+Mary Wells|1964|My Guy|4WT7nBGX5eU
+Sonny & Cher|1965|I Got You Babe|HKGjCPBSG38
+Weezer|2005|Beverly Hills|q0EpIzx9pi0
+Kool & The Gang|1980|Celebration|3GwjfUFyY6M
+Elton John|1970|Your Song|FT3D1Cu6g10
+Tom Jones|1966|Green Green Grass Of Home|EmT1ptv3VEc
+Chicago|1976|If You Leave Me Now|-9_d-sFhmRM
+Rod Stewart|1971|Maggie May|jubOWUlkxuk
+Black Eyed Peas|2003|Where Is The Love|WpYeekQkAdc
+Dean Martin|1953|That's Amore|OnFlx2Lnr9Q
+Don McLean|1971|American Pie|PRpiBpDy7MQ
+Carly Simon|1972|You're So Vain|j13oJajXx0M
+The Beatles|1969|Get Back|IKJqecxswCA
+Lizzo|2022|About Damn Time|JsOVJ1PAC6s
+Imagine Dragons|2017|Thunder|GtEvysh1654
+Joe Cocker|1969|With A Little Help From My Friends|eXV4WyQMHFM
+Jessie J feat. B.o.B|2011|Price Tag|wukKxuxKZMU
+Aerosmith|1975|Sweet Emotion|15aa3WIHk5M
+Mika|2006|Relax, Take It Easy|RVmG_d3HKBA
+New Kids On The Block|1990|Step By Step|GDEDQ8TCzW8
+Boston|1976|More Than A Feeling|zOILAZHf2pE
+Ed Sheeran|2021|Bad Habits|ho1RzYneMtM
+Lewis Capaldi|2018|Someone You Loved|FGGo8LFmbjs
+Billie Eilish|2019|Bad Guy|4-TbQnONe_w
+Madonna feat. Justin Timberlake & Timbaland|2008|4 Minutes|BgPqNyqYDN4
+Adele|2011|Set Fire To The Rain|a2giXO6eyuI
+The Isley Brothers|1961|Twist And Shout|cTaqn8_gMR0
+James Blunt|2005|You're Beautiful|M_q82PPHduI
+Simon & Garfunkel|1968|Mrs. Robinson|9C1BCAgu2I8
+Bob Marley & The Wailers|1974|No Woman No Cry|pHlSE9j5FGY
+Bon Jovi|2000|It's My Life|VyZeqzWvR7w
+Sylvester|1978|You Make Me Feel (Mighty Real)|gD6cPE2BHic
+Lady Gaga & Bradley Cooper|2018|Shallow|BpIf43m2ZQI
+Roy Orbison|1964|Oh, Pretty Woman|9yGFWYP3310
+Dolly Parton|1973|Jolene|Ixrje2rXLMA
+The Doors|1967|Light My Fire|cq8k-ZbsXDI
+The Beatles|1970|Let It Be|QDYfEBY9NM4
+Percy Sledge|1966|When A Man Loves A Woman|KwPxhWU1koE
+Katy Perry|2010|Firework|KSbwHzlcgs8
+AC/DC|1980|Hells Bells|etAIpkdhU9Q
+The Black Crowes|1990|Hard To Handle|BRcs_OzQb14
+Prince|1984|Purple Rain|GaJcBJQi7bY
+The Troggs|1966|Wild Thing|-hB-zLPe3Bo
+Parkway Drive|2018|Prey|WZPZ_-BxORo
+Skillet|2016|Feel Invincible|nZYa7vjjPv0
+System Of A Down|2005|B.Y.O.B.|zUzd9KyIDrM
+Bush|1994|Machinehead|5WPbqYoz9HA
+Green Day|1994|Basket Case|VKjEdYrx9P0
+Blondie|1980|Call Me|StKVS0eI85I
+Iron Maiden|1992|Fear of the Dark|p32b5nNq1zw
+The Cure|1987|Just Like Heaven|n3nPiBai66M
+Oasis|1995|Champagne Supernova|tI-5uv4wryI
+Slipknot|2008|Psychosocial|MjsUzI_BtGk
+Cutting Crew|1986|(I Just) Died In Your Arms|6dOwHzCHfgA
+Red Hot Chili Peppers|1991|Give It Away|R1qnNknKLsg
+MGK|2020|Bloody Valentine|wSdT-SArM2Q
+The Who|1965|My Generation|qN5zw04WxCc
+From Ashes to New|2020|Panic|f0xn-M4T3AQ
+Greta Van Fleet|2017|Highway Tune|aJg4OJxp-co
+Cream|1967|Sunshine Of Your Love|mChxWMlsuzw
+Amaranthe|2014|Drop Dead Cynical|RdyExxpd3Pg
+Third Eye Blind|1997|Semi-Charmed Life|beINamVRGy4
+blink-182|1999|What's My Age Again?|K7l5ZeVVoCA
+Motionless In White|2019|Another Life|uVysW4TWXS0
+Ratt|1984|Round and Round|0u8teXR8VE4
+Killswitch Engage|2006|My Curse|F5S2ahSapQc
+The Knack|1979|My Sharona|bbr60I0u2Ng
+Rise Against|2011|Satellite|6nQCxwneUwA
+Led Zeppelin|1971|Stairway to Heaven|QkF3oxziUI4
+Yes|1983|Owner of a Lonely Heart|SVOuYquXuuc
+Electric Light Orchestra|1979|Don't Bring Me Down|z9nkzaOPP6g
+The Runaways|1976|Cherry Bomb|aNNp5GyzlKc
+Dio|1983|Holy Diver|2lvs2FzF64o
+Guns N' Roses|1991|November Rain|8x23ajWSHyo
+Iron Maiden|1983|The Trooper|X4bgXH3sJ2Q
+Mötley Crüe|1989|Kickstart My Heart|CmXWkMlKFkI
+Motionless In White|2022|Masterpiece|rbFaVDfkI00
+Rage Against The Machine|1996|Bulls On Parade|3L4YrGaR8E4
+Nirvana|1991|Come As You Are|vabnZ9-ex7o
+Bruce Springsteen|1984|Born in the U.S.A.|EPhWR4d3FJQ
+Sum 41|2001|Fat Lip|CMX2lPum_pg
+T. Rex|1971|Get It On|-noFy_x7Yhg
+Paramore|2007|Misery Business|dvHFVGvISSQ
+Iggy Pop|1977|The Passenger|-fWw7FE9tTo
+The Hives|2000|Hate To Say I Told You So|Uz1Jwyxd4tE
+Queensrÿche|1990|Silent Lucidity|jhat-xUQ6dw
+Rise Against|2008|Savior|e8X3ACToii0
+Little Richard|1955|Tutti Frutti|ivhauEr3KxU
+Electric Callboy|2021|We Got the Moves|_4OglbPB9FI
+Dropkick Murphys|2013|Rose Tattoo|9d8SzG4FPyM
+Joan Jett & the Blackhearts|1981|I Love Rock 'N Roll|wMsazR6Tnf8
+ZZ Top|1973|La Grange|rG6b8gjMEkw
+Muse|2006|Supermassive Black Hole|Qr_qDnDPyA4
+Hole|1998|Celebrity Skin|O3dWBLoU--E
+Ghost|2016|Square Hammer|VqoyKzgkqR4
+Limp Bizkit|2000|Rollin' (Air Raid Vehicle)|AMX7XkO2-Y8
+Asking Alexandria|2017|Alone In A Room|4cHb8AJDR5Y
+Fleetwood Mac|1976|Go Your Own Way|ozl3L9fhKtE
+Asia|1982|Heat Of The Moment|88lgq7ZE9Xg
+Foreigner|1981|Juke Box Hero|jsGo_AZSb0E
+Volbeat|2016|The Devil's Bleeding Crown|3nb7DD7vdQ0
+System Of A Down|2001|Chop Suey!|CSvFpBOe8eY
+Wheatus|2000|Teenage Dirtbag|FC3y9llDXuM
+Whitesnake|1982|Here I Go Again|WyF8RHM1OCg
+Avenged Sevenfold|2013|Hail to the King|PI-dpqOa3rk
+Bring Me The Horizon|2013|Sleepwalking|lir3dzYIhz0
+Survivor|1982|Eye of the Tiger|btPJPFnesV4
+Europe|1986|The Final Countdown|lZzcQ-uQ8R0
+The Pretty Reckless|2020|Death by Rock and Roll|BX6KILafIS0
+Stone Temple Pilots|1994|Interstate Love Song|yjJL9DGU7Gg
+Scorpions|1982|No One Like You|O5hGSAdKge0
+Accept|1983|Balls to the Wall|3wMwuAEfKus
+Kansas|1976|Carry on Wayward Son|P5ZJui3aPoQ
+My Chemical Romance|2006|Welcome to the Black Parade|RRKJiM9Njr8
+Chuck Berry|1955|Maybellene|RMkIK0qZnjw
+Joan Jett & the Blackhearts|1988|I Hate Myself for Loving You|V6m7b5xJq7Y
+Architects|2020|Animals|n8hImk9kVbA
+Breaking Benjamin|2009|I Will Not Bow|7qrRzNidzIc
+Korn|1998|Freak On a Leash|jRGrNDV2mKc
+Ghost|2018|Dance Macabre|7Gr63DiEUxw
+Sublime|1996|What I Got|0Uc3ZrmhDN4
+The Everly Brothers|1957|Wake Up Little Susie|iTseFBze0NM
+Twisted Sister|1984|I Wanna Rock|tyHpTG1MjVU
+Soundgarden|1994|Black Hole Sun|3mbBbFH9fAg
+Bon Jovi|1988|Bad Medicine|eOUtsybozjg
+KISS|1975|Rock And Roll All Nite|EFMD7Usflbg
+Counting Crows|1993|Mr. Jones|-oqAU5VxFWs
+Drowning Pool|2001|Bodies|04F4xlWSFh0
+Tool|1996|Stinkfist|6zpvlMp04D0
+The Killers|2017|Run For Cover|XO7JGfqPB0s
+3 Doors Down|2000|Kryptonite|_p4td1Ch9t8
+Lynyrd Skynyrd|1973|Free Bird|0LwcvjNJTuM
+The Black Keys|2010|Howlin' for You|3AiRQyOKBJY
+Thirty Seconds To Mars|2005|The Kill (Bury Me)|8yvGCAvOAfM
+Nirvana|1993|Heart-Shaped Box|n6P0SitRwy8
+Paul Anka|1959|Put Your Head On My Shoulder|kvazBqAlx58
+The Clash|1982|Should I Stay or Should I Go|xMaE6toi4mk
+Red Hot Chili Peppers|1999|Scar Tissue|YlUKcNNmywk
+Motörhead|1980|Ace of Spades|3mbvWn1EY6g
+Skid Row|1989|18 and Life|ztzkz0r1RG8
+Booker T. & the M.G.'s|1962|Green Onions|0oox9bJaGJ8
+Black Sabbath|1970|Iron Man|0qanF-91aJo
+Sleep Token|2023|The Summoning|tH37hvuSJPo
+Godsmack|2018|Bulletproof|wKdOrFGojQE
+Spiritbox|2021|Circle With Me|I0WzT0OJ-E0
+The Mamas & The Papas|1965|California Dreamin'|KOok1WzZbOY
+The Red Jumpsuit Apparatus|2006|Face Down|6Ux6SlOE9Qk
+Arctic Monkeys|2012|R U Mine?|VQH8ZTgna3Q
+Bachman-Turner Overdrive|1974|You Ain't Seen Nothing Yet|Oxx5EziC8_w
+Creedence Clearwater Revival|1970|Run Through The Jungle|mbjQiqkaD3U
+Stone Sour|2017|Song #3|K73-hmaHPHY
+Sick Puppies|2011|You're Going Down|liW-kWFiXtQ
+Bruce Springsteen|1975|Born to Run|IxuThNgl3YA
+Fall Out Boy|2014|Centuries|LBr7kECsjcQ
+Buffalo Springfield|1966|For What It's Worth|80_39eAx3z8
+Faith No More|1989|Epic|WkqPVMKsN20
+Sum 41|2002|Still Waiting|qO-mSLxih-c
+Queens of the Stone Age|2002|No One Knows|s88r_q7oufE
+Judas Priest|1990|Painkiller|nM__lPTWThU
+Beastie Boys|1986|(You Gotta) Fight For Your Right (To Party!)|eBShN8qT4lk
+Panic! At The Disco|2006|I Write Sins Not Tragedies|XioHVMjtICI
+Bullet For My Valentine|2006|Tears Don't Fall|4q3KTBBsbpE
+Megadeth|1992|Symphony Of Destruction|zzcgZ_p3CMM
+Lit|1999|My Own Worst Enemy|sc5iTNVEOAg
+Survivor|1985|Burning Heart|NeCwJ1IiQQw
+Måneskin feat. Tom Morello|2023|Gossip|XrsbfrFPATs
+Stone Temple Pilots|1992|Plush|V5UOC0C0x8Q
+Godsmack|2002|I Stand Alone|OYjZK_6i37M
+Evanescence|2003|Going Under|CdhqVtpR2ts
+Jimmy Eat World|2001|The Middle|oKsxPW6i3pM
+Elvis Presley|1956|Hound Dog|cYwDUonrGFQ
+Avril Lavigne|2002|Sk8er Boi|TIy3n2b7V9k
+The Doors|1967|Break On Through (To the Other Side)|NFeUko-lQHg
+Jelly Roll|2023|Need A Favor|P1nRboaLTzU
+Linkin Park|2024|The Emptiness Machine|SRXH9AbT280
+Shinedown|2015|Cut the Cord|9itwt_opsvQ
+I Prevail|2019|Hurricane|zhMt7kvgzRM
+Jet|2003|Are You Gonna Be My Girl|tuK6n2Lkza0
+Green Day|2004|American Idiot|kqkGY9jsBOw
+Pat Benatar|1980|Hit Me With Your Best Shot|JRD80XRMT7s
+Ozzy Osbourne|1980|Crazy Train|tMDFv5m18Pw
+Måneskin|2021|I Wanna Be Your Slave|yOb9Xaug35M
+Linkin Park|2000|In the End|eVTXPUF4Oz4
+Pearl Jam|1991|Even Flow|FdIX36A8lMQ
+Ram Jam|1977|Black Betty|I_2D8Eo15wE
+KISS|1976|Detroit Rock City|iZq3i94mSsQ
+Queen|1978|Don't Stop Me Now|HgzGwKwLmgM
+George Thorogood & The Destroyers|1982|Bad To The Bone|IyhJ69mD7xI
+Alice Cooper|1989|Poison|Qq4j1LtCdww
+Kenny Loggins|1986|Danger Zone|siwpn14IE7E
+Black Sabbath|1971|Children of the Grave|0kqyn-vivxY
+Radiohead|1992|Creep|fAuT8_dboWo
+Rob Zombie|1998|Dragula|EqQuihD0hoI
+Breaking Benjamin|2015|Angels Fall|9zFfRSeA1ls
+Halestorm|2012|I Miss the Misery|V5OC2IZW3Pg
+Spin Doctors|1991|Two Princes|wsdy_rct6uo
+Judas Priest|1980|Breaking the Law|L397TWLwrUU
+Volbeat|2013|Lola Montez|DdPpRdImfuA
+Van Halen|1978|Ain't Talkin' 'Bout Love|qtwBFz6lfrY
+The Cars|1978|Just What I Needed|gvy2yqUHLLg
+Nickelback|2022|San Quentin|bsmoFqvY5gw
+blink-182|2001|First Date|vVy9Lgpg1m8
+Wolfmother|2005|Joker And The Thief|Nr0SqIAFohk
+Panic! At The Disco|2016|Don't Threaten Me with a Good Time|0hU3o7QbgKs
+Sabaton|2014|To Hell and Back|RhmHSAClG1c
+Smash Mouth|1999|All Star|L_jWHffIx5E
+Black Stone Cherry|2011|White Trash Millionaire|ZQ8itDYP6HU
+Royal Republic|2016|Getting Along|bu3ruL8WJgc
+Meat Loaf|1993|I'd Do Anything For Love (But I Won't Do That)|9X_ViIPA-Gc
+H-Blockx|1993|Risin' High|2gdchItioqQ
+Seether|2007|Fake It|gy8HPSIFXEM
+The White Stripes|2003|Seven Nation Army|0J2QdDbelmY
+Nazareth|1974|Love Hurts|WUff6gpqd8s
+The Rolling Stones|1969|Gimme Shelter|RbmS3tQJ7Os
+The Offspring|1998|The Kids Aren't Alright|7iNbnineUCI
+Five Finger Death Punch|2015|Jekyll and Hyde|x9RfXb3JHw8
+The Glorious Sons|2017|S.O.S. (Sawed Off Shotgun)|JcYaAu01Q2Y
+The Pretty Reckless|2014|Heaven Knows|JVZe5K3PZig
+Fall Out Boy|2005|Dance, Dance|C6MOKXm8x50
+Papa Roach|2017|Help|HYLTsdeO2uA
+Bon Jovi|1986|You Give Love A Bad Name|Aqc3VTpz9HQ
+The Kinks|1964|All Day and All of the Night|fOGMRnKl5co
+Placebo|1998|Every You Every Me|OMaycNcPsHI
+Guns N' Roses|1987|Paradise City|Rbm6GXllBiw
+All Time Low feat. blackbear|2020|Monsters|RvMniYi8t30
+Metallica|1991|Enter Sandman|CD-E-LDc384
+Poison|1988|Nothin' But A Good Time|_88L-CU7PD4
+Greta Van Fleet|2018|You're The One|9Wyn-s4Wc4s
+Rage Against The Machine|1999|Guerrilla Radio|Rm1nCYOZB-s
+Disturbed|2000|Down with the Sickness|09LTT0xwdfw
+Maurice Williams & The Zodiacs|1960|Stay|pOkeOz2Z_xk
+Guano Apes|1997|Open Your Eyes|UNo2-viKfW8
+Audioslave|2002|Like a Stone|7QU1nvuxaMA
+Kings of Leon|2010|Radioactive|wPBbMbKSZrQ
+Yellowcard|2004|Ocean Avenue|X9fLbfzCqWw
+Alice In Chains|1990|Man in the Box|TAqZb52sgpU
+Warrant|1990|Cherry Pie|OjyZKfdwlng
+Creed|1999|Higher|J16lInLZRms
+Incubus|1999|Drive|fgT9zGkiLig
+Pink Floyd|1979|Another Brick In The Wall, Pt. 2|HrxX9TBj2zY
+Mötley Crüe|1987|Girls, Girls, Girls|d2XdmyBtCRQ
+The Black Keys|2011|Lonely Boy|a_426RiwST8
+Creedence Clearwater Revival|1969|Fortunate Son|ZWijx_AgPiA
+Matchbox Twenty|1996|Push|HAkHqYlqops
+Tom Petty|1989|Free Fallin'|1lWJXDG2i0A
+The Beatles|1969|Come Together|45cYwDMibGo
+Aerosmith|1973|Dream On|iJDtukGW79Y
+Powerwolf|2015|Army of the Night|1zN7J64IeBo
+The Rolling Stones|1966|Paint It, Black|O4irXQhgMqg
+Foo Fighters|1997|Everlong|eBG7P-K-r1Y
+Bryan Adams|1984|Run To You|nCBASt507WA
+Three Days Grace|2003|I Hate Everything About You|d8ekz_CSBVg
+Journey|1983|Separate Ways (Worlds Apart)|LatorN4P9aA
+Paramore|2013|Still into You|S4o7vRDs3XE
+ZZ Top|1983|Sharp Dressed Man|7wRHBLwpASw
+Papa Roach|2000|Last Resort|j0lSpNtjPM8
+Weezer|1994|Buddy Holly|SiJie3Z7DG8
+Bullet For My Valentine|2010|Your Betrayal|IHgFJEJgUrg
+The Cult|1985|She Sells Sanctuary|tGGriaLbna0
+Korn|2005|Coming Undone|CSJXle3LP_Q
+Three Days Grace|2009|Break|_4VCpTZye10
+Beartooth|2023|Riptide|Zv3t0Fvgvik
+Jimi Hendrix|1966|Hey Joe|rXwMrBb2x1Q
+Good Charlotte|2002|The Anthem|desJKYvdq9A
+Bowling For Soup|2004|1985|K38xNqZvBJI
+Danzig|1988|Mother|KGXGt_Rf2h4
+Pearl Jam|2024|Dark Matter|6Fx8LprPMIU
+Muse|2022|Won't Stand Down|d55ELY17CFM
+Deftones|1997|My Own Summer (Shove It)|XOzs1FehYOA
+Royal Blood|2020|Trouble's Coming|uURsMKMloM8
+Van Halen|1984|Panama|fuKDBPw8wQA
+A Day To Remember|2010|All I Want|Pn-6eOxnEMI
+Aerosmith|1975|Walk This Way|4c8O2n1Gfto
+Blur|1997|Song 2|SSbBvKaM6sk
+Fountains Of Wayne|2003|Stacy's Mom|dZLfasMPOU4
+Nickelback|2005|Rockstar|ta-v8foO8r0
+Slayer|1986|Raining Blood|CkaE237oiwE
+Skillet|2009|Monster|1mjlM_RnsVE
+The All-American Rejects|2005|Dirty Little Secret|gPDcwjJ8pLg
+Bad Omens|2022|Just Pretend|GLRFl26Q92s
+Free|1970|All Right Now|5wiF6b4rxno
+The Who|1971|Baba O'Riley|QRTNm6GLJYI
+My Chemical Romance|2010|Na Na Na|4fZ4PyMQ9rU
+Foreigner|1977|Cold as Ice|ySb1f9zWJkQ
+Pink Floyd|1973|Money|-0kcet4aPpQ
+Styx|1978|Renegade|E9eLz4DrwF8
+Foo Fighters|2007|The Pretender|SBjQ9tuuTJQ
+The Police|1978|Roxanne|3T1c7GkzRQQ
+Toto|1978|Hold the Line|htgr3pvBr-I
+Thin Lizzy|1976|The Boys Are Back In Town|wIE5wwvicew
+Bring Me The Horizon|2023|LosT|L6tHMDaGgho
+Corey Taylor feat. Tech N9ne & Kid Bookie|2020|CMFT Must Be Stopped|BEPI69cx22E
+Blue Öyster Cult|1976|(Don't Fear) The Reaper|Dy4HA3vUv2c
+Disturbed|2015|The Vengeful One|8nW-IPrzM1g
+Neon Trees|2011|Everybody Talks|ulNS48wPZ4Q
+No Doubt|1995|Just A Girl|PHzOOQfhPFg
+Shinedown|2022|Planet Zero|IipnUpoW-58
+Wage War|2021|If Tomorrow Never Comes|qV_yJgqT2aY
+Blind Channel|2021|Dark Side|JXEK-fc3_BU
+Stone Sour|2012|Absolute Zero|j98jxCqh1IA
+The Struts|2014|Could Have Been Me|ARhk9K_mviE
+Jefferson Airplane|1967|White Rabbit|pnJM_jC7j_4
+Avenged Sevenfold|2010|Nightmare|EEGAeVEy5T4
+Queen|1975|Bohemian Rhapsody|fJ9rUzIMcZQ
+Billy Idol|1980|Dancing With Myself|FG1NrQYXjLU
+Slipknot|2004|Duality|L67svuppHcc
+Ozzy Osbourne|1983|Bark at the Moon|LplPi2CxNHI
+Avril Lavigne|2021|Bite Me|ciqUEV9F0OY
+Led Zeppelin|1970|Immigrant Song|RlNhD0oS5pk
+The Animals|1964|House of the Rising Sun|2JUO8oKzups
+The Clash|1979|London Calling|EfK-WX2pa8c
+Sweet|1974|Fox On The Run|eE9tV1WGTgE
+Ramones|1978|I Wanna Be Sedated|bm51ihfi1p4
+Deep Purple|1972|Highway Star|AqEW53Ui2no
+Royal Blood|2014|Figure It Out|jhgVu2lsi_k
+Wham!|1984|Wake Me Up Before You Go-Go|c5DGcQoBC9k
+The Monkees|1967|Daydream Believer|aG9MBS0fjyE
+Julia Michaels|2017|Issues|7dqMyh4ILIg
+Mando Diao|2014|Black Saturday|t5Uq1wV4PUQ
+Michael Gray|2004|The Weekend|PMXjC6ZpNr4
+Whitney Houston|1992|I Will Always Love You|tP0zj220CbQ
+Barbra Streisand|1980|Woman In Love|hQLGCX8D-1Y
+Carpenters|1974|Please Mr. Postman|R1qY7QaL8pM
+Army Of Lovers|1991|Crucified|NtvoxOIQ9g0
+The Other Ones|1986|Holiday|PSP-S882RKc
+Natasha Bedingfield|2007|Soulmate|PSmEy0CyWFs
+Stevie B|1990|Because I Love You|Tm4lcJ9nMSw
+Rita Ora|2018|Anywhere|ksdAs4LBRq8
+Frankie Valli|1967|Can't Take My Eyes off You|iObGpqXKBdY
+Panic! At The Disco|2018|High Hopes|GJY8OMJXRAk
+Ellie Goulding|2015|Love Me Like You Do|725WlG1idPc
+Triggerfinger|2012|I Follow Rivers|vYAejDztNhk
+Shaggy|1995|Boombastic|TeNjhglXm6w
+Céline Dion|1996|Because You Loved Me|fpl4if07ics
+Imagine Dragons|2017|Whatever It Takes|gOsM-DYAEhY
+a-ha|1984|Take on Me|djV11Xbc914
+Joana Zimmer|2005|I Believe (Give a Little Bit...)|5UUGt2p_hwY
+Kelly Clarkson|2009|My Life Would Suck Without You|cRM70Jw7F4M
+Johnny Nash|1972|I Can See Clearly Now|b0cAWgTPiwM
+F.R. David|1982|Words|nwrqQ2jYpwY
+Luv'|1978|You're The Greatest Lover|OO8pvsa3MGw
+Bay City Rollers|1976|I Only Wanna Be with You|wTADOT31rnQ
+Billy Joel|1983|Uptown Girl|o-0Oect0nVQ
+Roxette|1990|It Must Have Been Love|k2C5TjS2sh4
+Anastacia|2000|I'm Outta Love|EpTgryswsZQ
+Lou Reed|1972|Walk On the Wild Side|oG6fayQBm9w
+Kaiser Chiefs|2007|Ruby|Q2IeFx48Bas
+John Paul Young|1977|Love Is In The Air|ZWzWL-S05fg
+S Club 7|1999|Bring It All Back|G-vBymB7sNQ
+C+C Music Factory feat. Freedom Williams|1990|Gonna Make You Sweat (Everybody Dance Now)|dQSNpUahA-I
+Rihanna|2007|Don't Stop The Music|yd8jh9QYfEs
+Elvis Presley|1960|It's Now or Never|Uwelrtb8Oho
+Ava Max|2020|Kings & Queens|jH1RNk8954Q
+Marlon Roudette|2011|New Age|Jk5kYjD9E1I
+Soft Cell|1981|Tainted Love|TgyqZlFHokQ
+Nelly Furtado|2006|Say It Right|bBHGHa8AahM
+Take That|1995|Back for Good|N2ICtCO8TCw
+Taylor Swift|2014|Shake It Off|nfWlot6h_JM
+Jessica Folcker|1998|How Will I Know (Who You Are)|5sJ4oxGDqzQ
+Charlie Puth feat. Meghan Trainor|2015|Marvin Gaye|igNVdlXhKcI
+INNA|2010|Amazing|czRYJCzGO3A
+*NSYNC|2000|Bye Bye Bye|C27NShgTQE4
+Amy Grant|1991|Baby, Baby|_YrNW2RtOH4
+Tom Jones|1999|Sexbomb|KfGHjjovIe8
+Joe Cocker & Jennifer Warnes|1982|Up Where We Belong|Xlsx_CG02UE
+Jessie J|2011|Domino|FMtgC9lYt2w
+Lady Gaga|2011|The Edge Of Glory|qigPzqghPkw
+The Weather Girls|1982|It's Raining Men|4x6leDGV7gs
+Sam Feldt feat. RANI|2019|Post Malone|c42wPUQpZ84
+Roxy Music|1982|More Than This|wwXtPu-iA4Q
+Dexys Midnight Runners|1982|Come On Eileen|HwVnX4ZgliY
+Tavares|1976|Heaven Must Be Missing An Angel|UiEH4H986Vg
+Scissor Sisters|2006|I Don't Feel Like Dancin'|JBUs7P2kIAs
+Chubby Checker|1961|Let's Twist Again|Frw7U5X8dhg
+Katy Perry|2008|I Kissed A Girl|usvTbqTHwyw
+Shawn Mendes|2016|Mercy|YfuyEdCpAp0
+Nice Little Penguins|1994|Flying|iSqguQk55CI
+Lesley Gore|1963|It's My Party|RjdH_NmmO0I
+Julio Iglesias & Willie Nelson|1984|To All the Girls I've Loved Before|7As9e3uLpV4
+Eric Carmen|1975|All By Myself|iN9CjAfo5n0
+Shanice|1991|I Love Your Smile|zokhyLQloBI
+Texas|1999|Summer Son|wUfKbWyr-OM
+Youssou N'Dour feat. Neneh Cherry|1994|7 Seconds|QgWNByQJA4A
+Jonas Blue|2016|Perfect Strangers|91byJDDV3mU
+Bell Book & Candle|1997|Rescue Me|zDcJXNkYtN8
+Kesha|2009|TiK ToK|u5uSlUKBEDc
+Bon Jovi|1986|Livin' On A Prayer|YBdyc1WDlBQ
+Crowded House|1992|Weather With You|NZ3Ck43m_ZY
+Petula Clark|1964|Downtown|G8lk4ZTnbuc
+Dolly Parton|1980|9 to 5|E4OzdyxbOuU
+Bobby McFerrin|1988|Don't Worry Be Happy|AFDOSq6Wxa0
+Three Dog Night|1971|Joy To The World|EVcpKjXYa5c
+Meghan Trainor|2022|Made You Look|2HKitdFks0o
+Birdy|2016|Keeping Your Head Up|SQfBYKz1XWY
+Dua Lipa|2020|Levitating|TUVcZfQe-Kw
+Bruno Mars|2010|Just the Way You Are|HBzyuCda2RI
+Steve Miller Band|1974|The Joker|q3mfENm6VJc
+Tony Christie|1971|(Is This The Way To) Amarillo|kyohWo3aZvw
+Felix Jaehn feat. Polina|2015|Book Of Love|6vyPU5ASG98
+ABBA|1975|Mamma Mia|U4Sm7v6PDY8
+Alicia Keys|2012|Girl on Fire|mVuSfxqpZa4
+Rainbirds|1987|Blueprint|DMVeh6lO2yo
+Elton John & Kiki Dee|1976|Don't Go Breaking My Heart|DH7kBuZ5GZk
+Sandra|1989|We'll Be Together|-jnpbEbSugQ
+Snow Patrol|2006|Chasing Cars|sgj04v5sDm4
+Melanie C|2005|First Day of My Life|MrMW4g9Sofc
+R.E.M.|1991|Losing My Religion|Efa6BAWPm9o
+Pet Shop Boys|1993|Go West|0c9s70yytYE
+Backstreet Boys|1997|Everybody (Backstreet's Back)|J47YIH1XCGE
+OneRepublic|2022|I Ain't Worried|mNEUkkoUoIA
+Rozalla|1991|Everybody's Free (To Feel Good)|LM9kN4v065Y
+Modern Talking|1986|Brother Louie|SSkDfGa9Bnw
+Kylie Minogue|2001|Can't Get You out of My Head|uYANAvwvPBg
+The Corrs|1999|Radio|js-Wg53U-3k
+Orange Blue|2000|She's Got That Light|HnZPif5CQ-w
+Martha Reeves & The Vandellas|1964|Dancing In The Street|1PXzYVhA2CQ
+Peggy Gou|2023|(It Goes Like) Nanana|P1jK0yKj5jI
+Sia|2014|Chandelier|8DS-h67qEiY
+Avril Lavigne|2002|Complicated|DTtb9rt1tnk
+Wonderwall|2002|Just More|qcuKd0Rog8I
+Shakin' Stevens|1980|You Drive Me Crazy|R__cIlBrX_Q
+Bette Midler|1990|From a Distance|S-4xzk26EcM
+Supertramp|1977|Give A Little Bit|J9JOut9yh5g
+KC & The Sunshine Band|1975|That's the Way (I Like It)|IdfZUZ_rWCI
+Boney M.|1978|Rivers of Babylon|eN3Fmpnoado
+Michael Jackson|1982|Billie Jean|Kr4EQDVETuA
+Soulsister|1988|The Way to Your Heart|-rzpX12fJy0
+Neil Diamond|1972|Song Sung Blue|ighSddnnaPE
+Justin Bieber|2010|Baby|GqWYJT-iMTw
+Right Said Fred|1991|I'm Too Sexy|1l8KLXDhTMQ
+Bnd|1995|Here I Go Again|d_izrMwn5kk
+George Ezra|2013|Budapest|NqEwn5sCxos
+Martin Solveig|2010|Hello|WmH4iWoJfTo
+Olivia Newton-John & Electric Light Orchestra|1980|Xanadu|mX8Y_LUxIJo
+Lana Del Rey|2011|Video Games|mhr4YecSV_Y
+Exile|1978|Kiss You All Over|jv5n1L_sZ2w
+Martin Garrix feat. Bono & The Edge|2021|We Are The People|VjPXdubfIG8
+Britney Spears|1999|...Baby One More Time|91Niv2q4gvc
+fun. feat. Janelle Monáe|2012|We Are Young|f_K_0SNaRk0
+Mr. President|1997|Jojo Action|5aKXeGNUSJs
+Milow|2009|Ayo Technology|DE9IchvpOPk
+Walk The Moon|2014|Shut Up and Dance|nbcCG7PkI18
+Billy Ray Cyrus|1992|Achy Breaky Heart|vDjbZVawd68
+Leona Lewis|2007|Bleeding Love|CFJtRiKgLhE
+Sheryl Crow|2002|Soak Up The Sun|ynTRWe3J9UM
+Barry Manilow|1974|Mandy|AvGpvQbkccE
+One Direction|2013|Story of My Life|8M3Vlnu_i3c
+Clean Bandit feat. Sean Paul & Anne-Marie|2016|Rockabye|TOi1Ipwv5Qc
+Shakira feat. Wyclef Jean|2006|Hips Don't Lie|nOj6d-HOw2w
+Train|2012|Drive By|ct1SIHfjzvM
+Alexander|2003|Free Like the Wind|9c2zl-wcIRE
+Years & Years|2015|King|_3M9w7WwyXU
+The Bangles|1986|Walk Like an Egyptian|cFGCu5hnLyA
+Kygo & Selena Gomez|2017|It Ain't Me|OK848_DSj6k
+Nick Kamen|1990|I Promised Myself|hq4ZF1b5lHA
+Patrick Swayze feat. Wendy Fraser|1987|She's Like the Wind|45V-ai4htd8
+Spice Girls|1997|Spice Up Your Life|NG2i4d8xOMo
+Cher|1998|Strong Enough|ZhmLYsxhWUk
+The Beach Boys|1964|I Get Around|BchXkabxn4A
+Scatman John|1995|Scatman (Ski-Ba-Bop-Ba-Dop-Bop)|Eht9W25tDZo
+Soul Asylum|1993|Runaway Train|ooutlWLE0js
+U2|2000|Beautiful Day|rIKTwELuCLw
+Mark Medlock|2008|Summer Love|hxnPBeZAg30
+Dido|2003|White Flag|jRqhGC5vgC0
+Fancy|1988|Flames Of Love|7MRWnFCmCt0
+Madonna|1989|Like a Prayer|b_rIk8yKDGI
+DJ BoBo|1996|It's My Life|WEQLaMXrgnQ
+X-Perience|1996|A Neverending Dream|8tvqlU4-PV4
+KISS|1979|I Was Made For Lovin' You|12fJAnaif34
+The Housemartins|1986|Caravan Of Love|At_ykyi1ad8
+Adele|2010|Rolling in the Deep|bDtjO-R0QSo
+Haddaway|1993|Life|jF5vUrJFp5Q
+Christina Aguilera|2002|Beautiful|f1zLSpzCh9E
+Erasure|1988|Ship of Fools|Kq5AYt2xbho
+John Denver|1971|Take Me Home, Country Roads|1vrEljMfXYo
+Hues Corporation|1973|Rock the Boat|_SU__KLiPCc
+Sheppard|2014|Geronimo|OCLgRVRLZXo
+The 5th Dimension|1969|Aquarius/Let The Sunshine In|VlrQ-bOzpkQ
+The Kelly Family|1994|An Angel|Sfepfm_gi2Y
+Taio Cruz|2009|Break Your Heart|ddgcdagdbwI
+Cyndi Lauper|1983|Girls Just Want to Have Fun|jRr5EasAq84
+Bonnie Tyler|1983|Total Eclipse of the Heart|LSYGIljR6sQ
+Baccara|1977|Yes Sir, I Can Boogie|dTvXBAKm_5I
+Ricky Martin|1999|Livin' la Vida Loca|CN5hQOI__10
+Christie|1970|Yellow River|qJ5-FoiBuVc
+Huey Lewis & The News|1985|The Power Of Love|-UQFBtHEFJ8
+Sarah Connor|2003|Music Is The Key|5EmNiiAutno
+The Ronettes|1963|Be My Baby|jSPpbOGnFgk
+Jason Mraz|2008|I'm Yours|J2TKTLOwjeg
+Sylver|2001|Forever in Love|Ue2KkI3DLhU
+Phil Collins|1989|Another Day in Paradise|eaFlJQGtBeM
+P!nk|2023|Trustfall|BKR3vn9kKKA
+Kungs|2021|Never Going Home|fVkWwJl1h9M
+Deep Purple|1973|Smoke On The Water|1L3XxUxEb6U
+Calvin Harris & Sam Smith|2018|Promises|-imUq8WysSc
+Bonnie Bianco|1984|Stay|OGaOZqq_RZc
+The Killers|2008|Human|PODjfdNOIEo
+Schiller|2001|Dream Of You|kWhZV0mdm1Y
+Infernal|2004|From Paris to Berlin|THt5u-i2d9k
+Joel Corry feat. MNEK|2020|Head & Heart|CRuOOxF-ENQ
+The New Seekers|1971|Never Ending Song Of Love|ChopL-5R9fo
+Stevie Wonder|1972|You Are The Sunshine Of My Life|sp6hzycBsTI
+David Guetta feat. Kelly Rowland|2009|When Love Takes Over|X-OSOtL401o
+Van Halen|1984|Jump|bq-potK_7Ts
+Patti Smith|1978|Because the Night|c_BcivBprM0
+Amy Macdonald|2007|This Is The Life|iRYvuS9OxdA
+Village People|1978|Y.M.C.A.|CS9OO0S5w2k
+Tina Charles|1976|I Love to Love|R7ZACK0vGDA
+Wings|1976|Silly Love Songs|ap87QgZKTNw
+Magic!|2013|Rude|-qqCx5ZyscE
+Lily Allen|2009|Not Fair|6ezTZ8NUljA
+M People|1993|Moving on Up|zkHOVJINRD8
+Ofenbach feat. Lagique|2021|Wasted Love|4fE8lGBEbUA
+The Weeknd|2019|Save Your Tears|3o4ug07qJBI
+Duncan Laurence|2019|Arcade|Qau6mObfSGM
+Hurts|2010|Stay|2t5JbPU1Vy4
+Robbie Williams|2012|Candy|5T_6-TTUaNs
+Steam|1969|Na Na Hey Hey Kiss Him Goodbye|FRlTjErEDPQ
+Blondie|1980|The Tide Is High|BQU2SY_D31M
+Evanescence|2003|Bring Me To Life|UVob6MQQRqk
+Ryan Paris|1983|Dolce Vita|1BYCeQeuTxE
+Jonas Brothers|2019|Sucker|tdKmewyZPXE
+Middle Of The Road|1971|Chirpy Chirpy Cheep Cheep|rbHOornfq-s
+Frank Sinatra|1966|Strangers In The Night|BTOeRwIUnG0
+Cliff Richard|1979|We Don't Talk Anymore|uRMFS_Qvi_U
+Bee Gees|1977|How Deep Is Your Love|o51p5IRJ5Tc
+The Doobie Brothers|1973|Long Train Runnin'|CVsLEI-hCXw
+Flo Rida|2012|Whistle|mRaffkti2us
+Katrina & The Waves|1983|Walking On Sunshine|iPUmE-tne5U
+Joe Cocker|1994|Summer In the City|GuyfyTvrZJc
+Fairground Attraction|1988|Perfect|txapREGWHp0
+Drake|2016|One Dance|ki0Ocze98U8
+Lighthouse Family|1997|High|taOL5HJdx1A
+Lionel Richie|1983|All Night Long (All Night)|nqAvFx3NxUM
+Barry White|1976|Let The Music Play|tfFjm-6cbu8
+Sin With Sebastian|1995|Shut Up (And Sleep With Me)|KTfXUXqtkQw
+DJ Jazzy Jeff & The Fresh Prince|1991|Summertime|Kr0tTbTbmVA
+Black Eyed Peas|2009|I Gotta Feeling|uSD4vsh1zDA
+Peter Andre|1995|Mysterious Girl|iqIq4B1rgl4
+Topic|2019|Breaking Me|jIoEaTN7GGo
+The Beatles|1969|Here Comes The Sun|xUNqsfFUwhY
+America|1971|A Horse With No Name|na47wMFfQCo
+Calvin Harris|2015|How Deep Is Your Love|EgqUJOudrcM
+DJ Ötzi|2000|Hey Baby|CmhNw9ohGq8
+Christina Aguilera, Lil' Kim, Mýa & P!nk|2001|Lady Marmalade|RQa7SvVCdZk
+Jimmy Cliff|1983|Reggae Night|oPHWzTDJhSE
+Taio Cruz|2011|World In Our Hands|9-YOU4DasV0
+Les Humphries Singers|1973|Mama Loo|xabrEUv8IFM
+Trio Rio|1986|New York-Rio-Tokyo|6mLb4l8FLlE
+Laid Back|1983|Sunshine Reggae|R82XGJV_nkU
+Goombay Dance Band|1979|Sun of Jamaica|P5OrPKTFBIY
+Billy Idol|1987|Sweet Sixteen|ClxXDfvtoj0
+Sheryl Crow|1994|All I Wanna Do|ClbmWkbocoY
+Inner Circle|1992|Sweat (A La La La La Long)|AdIer7rKyq0
+Tom Gregory|2021|River|5gCEh4ICp3A
+Vengaboys|1998|Boom, Boom, Boom, Boom!!|llyiQ4I-mcQ
+Sabrina|1987|Boys (Summertime Love)|_OIPDU8kCNo
+The Underdog Project|2003|Summer Jam 2003|9AHfNvKRtvM
+Oliver Onions|1973|Flying Through the Air|apOn3XQSYaA
+K'NAAN|2009|Wavin' Flag|VrurenhpPxE
+Bob Marley & The Wailers|1980|Could You Be Loved|1Ogjp1hzmZU
+Alexander Klaws|2003|Take Me Tonight|DmgDOFtzRFA
+Prince Ital Joe feat. Marky Mark|1994|United|AA-y4oqjOUs
+Leony|2021|Faded Love|CE7ymQByeH0
+Naughty Boy|2013|La La La|3O1_3zBUKM8
+Kool & The Gang|1984|Fresh|sTJ1XwGDcA4
+Kungs vs. Cookin' On 3 Burners|2016|This Girl|2Y6Nne8RvaA
+Gerry Rafferty|1978|Baker Street|Fo6aKnRnBxM
+Ike & Tina Turner|1973|Nutbush City Limits|DbivX78Degg
+Queen|1984|I Want To Break Free|f4Mc-NYPHaQ
+Kenny Loggins|1984|Footloose|ltrMfT4Qz5Y
+Justin Timberlake|2016|Can't Stop The Feeling!|ru0K8uYEZWw
+Avicii|2013|Wake Me Up|IcrbM1l_BoI
+Gwen Stefani|2004|Hollaback Girl|Kgjkth6BRRY
+No Mercy|1996|Where Do You Go|nzQDQcELNuU
+Level 42|1986|Lessons In Love|9x1RcVrGjGM
+Bananarama|1986|Venus|d4-1ASpdT1Y
+Technotronic|1989|Pump Up The Jam|9EcjWd-O4jI
+Glass Animals|2020|Heat Waves|mRD0-GxqHVo
+Nana|1997|Lonely|CD6VMP2wzJM
+Miami Sound Machine|1985|Conga|VVRHtUes7go
+MC Miker G & DJ Sven|1986|Holiday Rap|5JgR6JCLUfg
+Earth & Fire|1979|Weekend|0uNaFo3wAR8
+Thomas Godoj|2008|Love Is You|eCsh6FNFg3Y
+Arrested Development|1992|People Everyday|SvlcpJX4Dn0
+Katy Perry|2010|California Gurls|F57P9C4SAW4
+Jennifer Lopez|2000|Let's Get Loud|Q91hydQRGyM
+Calvin Harris & Dua Lipa|2018|One Kiss|DkeiKbqa02g
+Lou Bega|1999|Mambo No. 5 (A Little Bit of...)|EK_LN3XEcnw
+Stan Getz & João Gilberto|1963|The Girl From Ipanema|v5DZ5clg-bg
+Tracy Chapman|1988|Talkin' Bout a Revolution|Xv8FBjo1Y8I
+Members Of Mayday|1997|Sonic Empire|hhWf2GuDZZc
+Fleetwood Mac|1977|Don't Stop|QV9JJmSCiI8
+Mr. President|1996|Coco Jamboo|_Jl-QpJNKiQ
+Lumidee|2003|Never Leave You (Uh Oooh, Uh Oooh)|QhKj93rPIDo
+B3|2002|I.O.I.O.|AuoMrxTWBlc
+ABBA|1975|SOS|aKXAN-bcwRo
+Cher|1990|The Shoop Shoop Song (It's In His Kiss)|XpgbmIkyRDc
+The Supremes|1965|Stop! In The Name Of Love|une981B7Q4Y
+Nancy Sinatra & Lee Hazlewood|1966|Summer Wine|yZYM8YYYfL4
+Elton John|1972|Rocket Man|DtVBCG6ThDk
+Dua Lipa|2023|Dance The Night|OiC1rgCPmUQ
+Bobby Hebb|1966|Sunny|J-5xGXpNt74
+Norman Greenbaum|1969|Spirit In The Sky|RUh6u7wJ3Ns
+Rod Stewart|1975|Sailing|RFgn9-8KL4s
+Asaf Avidan|2012|One Day / Reckoning Song|KRAMNWzfjcg
+Donna Summer|1977|I Feel Love|nTNcCKq6V2c
+Calvin Harris|2014|Summer|ebXbLfLACGM
+SNAP!|1992|Rhythm Is A Dancer|JYIaWeVL1JM
+Bee Gees|1978|Night Fever|-ihs-vT9T3Q
+Mariah Carey|1994|Without You|4iusJui-BxM
+Cascada|2009|Evacuate the Dancefloor|voVizghdfJM
+Ne-Yo|2008|Closer|z_aC5xPQ2f4
+The Outhere Brothers|1995|Boom Boom Boom|u6qMxuFaq0I
+Sarah Connor|2001|Let's Get Back To Bed - Boy!|cgFMbBfK-1I
+Alannah Myles|1989|Black Velvet|ZHHEmd5mECY
+Michael Schulte & R3HAB|2023|Waterfall|KCYJa9UdEb4
+SNAP!|1990|The Power|nm6DO_7px1I
+Snoop Dogg feat. Pharrell|2004|Drop It Like It's Hot|GtUVQei3nX4
+Bob Sinclar|2005|Love Generation|MJfwcmPFNtQ
+The Beach Boys|1965|Barbara Ann|-bSnI-a0BSc
+Scott McKenzie|1967|San Francisco (Be Sure to Wear Flowers in Your Hair)|LAX5GgvS-8s
+KAMRAD|2022|I Believe|-kCxFFACZxY
+Purple Disco Machine & Kungs|2023|Substitution|7x5lqqji9ww
+Zara Larsson|2015|Lush Life|tD4HCZe-tew
+Ava Max|2019|So Am I|SxGLPVvNjvY
+Justin Timberlake feat. Timbaland|2006|SexyBack|gfWQ1r6IQrY
+Harold Faltermeyer|1984|Axel F|L2cstHtZ4gQ
+Bryan Adams|1984|Summer Of '69|eFjjO_lhf9c
+P!nk|2021|Cover Me In Sunshine|vGZhMIXH62M
+Nelly|2002|Hot In Herre|y8vLMHeO_5s
+La Bouche|1995|Be My Lover|ViP87WipSm0
+Hot Chocolate|1980|No Doubt About It|qkUIlc8CBP8
+De Electronica's|1981|Dance Little Birdie|ArBNqichSig
+Beagle Music Ltd.|1985|Like Ice in the Sunshine|5EwnGpLJr4Q
+Dr. Alban|1992|It's My Life|aBJZsHDJvf0
+Terry Jacks|1973|Seasons in the Sun|-tPcc1ftj8E
+Sonique|2000|It Feels So Good|0bcYxH65kSg
+Felix Jaehn feat. Jasmine Thompson|2015|Ain't Nobody (Loves Me Better)|5j1RCys4R0g
+Scatman John|1995|Scatman's World|aIQln4JfGdU
+Mike Oldfield|1983|Moonlight Shadow|9uYF95jR_ME
+Mr. Probz|2013|Waves|0a5WyAjL1MM
+Visage|1980|Fade To Grey|6sSKbcwKHXw
+Britney Spears|2003|Everytime|8YzabSdk7ZA
+Emilíana Torrini|2008|Jungle Drum|4tRpuASOqVc
+Dennis Lloyd|2016|Nevermind|naW6-WxmMiU
+Lilly Wood & The Prick and Robin Schulz|2014|Prayer in C|fiore9Z5iUg
+DNCE|2015|Cake By The Ocean|PAzH-YAlFYc
+U96|1996|Heaven|iWSAGEQs20A
+Spice Girls|1996|Wannabe|gJLIiF15wjQ
+Pitbull|2009|I Know You Want Me (Calle Ocho)|i-6idBTkRb4
+Boney M.|1976|Daddy Cool|ghGiv7YLC7Q
+Daniel Boone|1972|Beautiful Sunday|hz3T4ChuW5o
+Puff Daddy feat. Faith Evans & 112|1997|I'll Be Missing You|pNPf-aP-bsA
+Kygo|2015|Stole the Show|Vs3LXhqm5h4
+Gabriella Cilmi|2008|Sweet About Me|qvuyYj5ROmk
+Ed Sheeran|2017|Shape of You|JGwWNGJdvx8
+Jive Bunny and the Mastermixers|1989|Swing The Mood|1w88-T0p-I8
+The Rolling Stones|1968|Jumpin' Jack Flash|KXUJMaYzh6U
+Safri Duo|2000|Played-A-Live (The Bongo Song)|o_ZBzGlYS6g
+UB40|1990|Kingston Town|2UOY1JeFvAw
+Ed Sheeran & Justin Bieber|2019|I Don't Care|y83x7MgzWOA
+Double You|1992|Please Don't Go|9oWr1muik7M
+Dynoro & Gigi D'Agostino|2018|In My Mind|5gga8E43clk
+Lynn Anderson|1970|Rose Garden|roxohOzFz3E
+Maroon 5|2002|This Love|XPpTgCho5ZA
+Tom Jones|1965|It's Not Unusual|k-HdGnzYdFQ
+Pras feat. Ol' Dirty Bastard & Mýa|1998|Ghetto Supastar (That Is What You Are)|MnWogQTfSIY
+Carly Rae Jepsen|2011|Call Me Maybe|fWNaR-rxAic
+Texas Lightning|2006|No No Never|FojUoWKmSsU
+DJ BoBo|1993|Everybody|MM19WL9r4_0
+Dante Thomas|2001|Miss California|hJAh2noiK6w
+Hermes House Band|2001|Country Roads|krLcc21v9cU
+Men Without Hats|1982|The Safety Dance|1p_BvaHsgGg
+Crystal Waters|1991|Gypsy Woman (She's Homeless)|KHIgpxwdZfg
+Lana Del Rey|2012|Summertime Sadness|TdrL3QxjyVw
+Eiffel 65|1999|Blue (Da Ba Dee)|frb34jzxrf0
+US5|2005|Maria|OI_shpuZ-FY
+2 Unlimited|1993|No Limit|HMTCw8CtX0E
+The Rubettes|1974|Sugar Baby Love|x6PRG-E4nYo
+A Touch Of Class|2000|Around the World (La La La La La)|Se237UXFKlQ
+C.C. Catch|1988|Backseat of Your Cadillac|giNe1IY8N_E
+Gnarls Barkley|2006|Crazy|gFtjckFWRZM
+DNA feat. Suzanne Vega|1990|Tom's Diner|FusUqeoYPtE
+OneRepublic|2013|Love Runs Out|0OWj0CiM8WU
+Peter Kent|1979|It's a Real Good Feeling|pQVnTxRLho8
+Outlandish|2002|Aicha|f0nFTdKlKLw
+Neil Young|1972|Heart Of Gold|c7eB7Wns1-M
+Madcon feat. Ray Dalton|2012|Glow|P9QBK1W9Ag4
+David Hasselhoff|1989|Looking for Freedom|iFS_lAg_tSo
+Kid Rock|2008|All Summer Long|C6uP3uA6yLs
+Alexandra Stan|2010|Mr. Saxobeat|nwsewSMWIas
+James Hype & Miggy Dela Rosa|2022|Ferrari|CgeleP7nWN0
+Soul Control|2004|Chocolate (Choco Choco)|kTylYpwQ74w
+All-4-One|1994|I Swear|upB-OYQ_Ajo
+George McCrae|1974|Rock Your Baby|0xVCT0MzBDo
+Vengaboys|1999|We're Going To Ibiza!|MXXRHpVed3M
+Lena|2010|Satellite|93ugDwiBVzA
+The Kinks|1964|You Really Got Me|fTTsY-oz6Go
+Santana feat. Rob Thomas|1999|Smooth|c-dQmVi0HlM
+The Pussycat Dolls|2005|Don't Cha|QbzbcglUvhQ
+Mark Medlock|2007|You Can Get It|P6kAoYFejFs
+Salt-N-Pepa|1991|Let's Talk About Sex|8zWhI5ZjkDY
+Monrose|2007|Hot Summer|ikgpaT5_XXY
+Riton & Nightcrawlers feat. Mufasa & Hypeman|2021|Friday|U6n2NcJ7rLc
+Albert Hammond|1973|The Free Electric Band|Na148b5lM_g
+Carl Douglas|1974|Kung Fu Fighting|hq5REevpSP8
+DJ Antoine vs. Mad Mark|2011|Welcome to St. Tropez|LuOcaIilW9k
+Ottawan|1979|D.I.S.C.O.|EO51YkA3qys
+George Baker Selection|1975|Paloma Blanca|BuRYDZJxr3g
+Baltimora|1985|Tarzan Boy|U7ZUdutweeo
+Stars On 45|1981|Stars On 45|VXcWSppu3A8
+Kim Wilde|1981|Chequered Love|Re58O6EpNzg
+Justin Wellington feat. Small Jam|2019|Iko Iko (My Bestie)|TzwqnlYMqIg
+John Travolta & Olivia Newton-John|1978|You're The One That I Want|e__Pp4FxsjU
+Jason Derulo|2015|Want to Want Me|X_mxDuaOOjI
+Dario G|1998|Carnaval de Paris|qWcOxPfzRPs
+Opus|1984|Live Is Life|BODBiJz7RoY
+Robin Schulz feat. Alida|2020|In Your Eyes|mDLiAs5k1oI
+VIZE & Tom Gregory|2020|Never Let Me Down|FE59sa7axHQ
+Marlon Roudette|2014|When The Beat Drops Out|BLRgaU9uUnA
+Wham!|1983|Club Tropicana|v2_UulzmUtY
+Nelly Furtado|2006|Maneater|7RdcBwSAZtk
+Madonna|1987|La Isla Bonita|ZmzjH6OjjIA
+Gilbert O'Sullivan|1973|Get Down|LtAElNf_klQ
+Desmond Dekker & The Aces|1968|Israelites|0wSXTN2EfRo
+John Miles|1976|Music|lAsvjVx-Mg4
+Oliver Onions|1980|Santamaria|UalYNiT5Tvo
+Golden Earring|1973|Radar Love|ckM51xoTC2U
+David Guetta feat. Sam Martin|2014|Lovers on the Sun|EpbjEttizy8`;
+
+const SONGS = [
+  ...RAW.split('\n').map(line => {
+    const [n, artist, year, title, yt] = line.split('|');
+    return { n: +n, pack: 'hu', artist, year: +year, title, yt };
+  }),
+  ...INT_RAW.split('\n').map((line, i) => {
+    const [artist, year, title, yt] = line.split('|');
+    return { n: 1001 + i, pack: 'int', artist, year: +year, title, yt };
+  })
+];
+const PACK_NAMES = { hu: 'Magyar kiadás', int: 'Nemzetközi', mix: 'Vegyes' };
+// Azonos dal kulcsa (cím + előadó eleje), hogy vegyes paklinál ne jöjjön kétszer.
+const songKey = s => (s.title.replace(/\(.*?\)/g, '') + '|' + s.artist.slice(0, 5)).toLowerCase().normalize('NFD').replace(/[^a-z0-9|]/g, '');
+function packPool(pack) {
+  if (pack !== 'mix') return SONGS.filter(s => s.pack === pack);
+  const seen = new Set();
+  return SONGS.filter(s => !seen.has(songKey(s)) && seen.add(songKey(s)));
+}
 const byNum = n => SONGS.find(s => s.n === n);
 
 const SAVE_KEY = 'hitster-hu-szolo';
-const RECORD_KEY = 'hitster-hu-rekord';
+const recordKey = pack => pack === 'hu' ? 'hitster-hu-rekord' : 'hitster-rekord-' + pack;
 const ROUNDS = 10;
 // G = { start, cards:[n], deck:[n], round, hits, current, slot, revealed, started, elapsed(ms), done }
 let G = null;
@@ -469,9 +1486,11 @@ function isCorrect(cards, slot, year) {
 }
 
 function newGame() {
-  const deck = shuffle(SONGS.map(s => s.n));
+  const pack = $('packSel').value;
+  try { localStorage.setItem('hitster-pakli', JSON.stringify(pack)); } catch (e) {}
+  const deck = shuffle(packPool(pack).map(s => s.n));
   const start = deck.pop();
-  G = { start, cards: [start], missed: [], deck, round: 1, hits: 0, elapsed: 0, done: false };
+  G = { pack, start, cards: [start], missed: [], deck, round: 1, hits: 0, elapsed: 0, done: false };
   drawCard();
   show();
 }
@@ -505,7 +1524,7 @@ setInterval(() => { if (G && !G.done) save(); }, 5000);
 document.addEventListener('visibilitychange', () => { lastTick = Date.now(); });
 
 const statusHTML = () =>
-  `<span>Dal: ${Math.min(G.round, ROUNDS)}/${ROUNDS}</span><span>Talált: ${G.hits}</span><span>⏱ ${fmt(G.elapsed)}</span>`;
+  `<span>${PACK_NAMES[G.pack || 'hu']}</span><span>Dal: ${Math.min(G.round, ROUNDS)}/${ROUNDS}</span><span>Talált: ${G.hits}</span><span>⏱ ${fmt(G.elapsed)}</span>`;
 
 function render() {
   $('scores').innerHTML = statusHTML();
@@ -513,7 +1532,7 @@ function render() {
   $('playBtn').disabled = G.done;
 
   if (G.done) {
-    const rec = readJSON(RECORD_KEY);
+    const rec = readJSON(recordKey(G.pack || 'hu'));
     $('turnTitle').textContent = 'Vége!';
     stopSong();
     $('hint').classList.add('hidden');
@@ -577,9 +1596,9 @@ function next() {
   if (G.done) { newGame(); return; }
   if (G.round >= ROUNDS) {
     G.done = true;
-    const rec = readJSON(RECORD_KEY);
+    const rec = readJSON(recordKey(G.pack || 'hu'));
     G.newRecord = isBetter(G, rec);
-    if (G.newRecord) try { localStorage.setItem(RECORD_KEY, JSON.stringify({ hits: G.hits, elapsed: G.elapsed })); } catch (e) {}
+    if (G.newRecord) try { localStorage.setItem(recordKey(G.pack || 'hu'), JSON.stringify({ hits: G.hits, elapsed: G.elapsed })); } catch (e) {}
     save();
     render();
     return;
@@ -594,7 +1613,13 @@ function showMenu() {
   stopSong();
   $('game').classList.add('hidden'); $('setup').classList.remove('hidden');
   $('resumeBtn').classList.toggle('hidden', !load());
-  const rec = readJSON(RECORD_KEY);
+  showRecord();
+}
+
+function showRecord() {
+  const pack = $('packSel').value;
+  const rec = readJSON(recordKey(pack));
+  $('packInfo').textContent = `${packPool(pack).length} dal, YouTube-ról. Ha egy videó nem indul el, a „Másik dal” gomb újat húz, a kör nem vész el. Az óra akkor indul, amikor a dal megszólal, és a felfedésnél áll meg. A kezdőkártyát kék keret jelöli.`;
   $('record').textContent = rec ? `Rekordod: ${rec.hits}/${ROUNDS}, ${fmt(rec.elapsed)} alatt.` : '';
 }
 
@@ -611,6 +1636,8 @@ $('revealBtn').onclick = reveal;
 $('nextBtn').onclick = next;
 $('skipBtn').onclick = () => { tick(); drawCard(); render(); };
 $('quitBtn').onclick = showMenu;
+$('packSel').onchange = showRecord;
+$('packSel').value = readJSON('hitster-pakli') || 'hu';
 $('playBtn').onclick = () => {
   if (!player || !player.getPlayerState) return;
   try { player.getPlayerState() === YT.PlayerState.PLAYING ? player.pauseVideo() : player.playVideo(); } catch (e) {}
@@ -629,7 +1656,9 @@ function runTests() {
   console.assert(isBetter({ hits: 7, elapsed: 9e5 }, { hits: 6, elapsed: 1e5 }), 'több találat nyer');
   console.assert(isBetter({ hits: 7, elapsed: 1e5 }, { hits: 7, elapsed: 2e5 }), 'egyenlőnél gyorsabb nyer');
   console.assert(!isBetter({ hits: 7, elapsed: 3e5 }, { hits: 7, elapsed: 2e5 }), 'lassabb nem rekord');
-  console.assert(SONGS.length === 308 && SONGS.every(s => s.year > 1900 && s.yt), 'adatok');
+  console.assert(packPool('hu').length === 308 && packPool('int').length === 994, 'pakliméretek');
+  console.assert(SONGS.every(s => s.year > 1900 && /^[\w-]{11}$/.test(s.yt) && s.title && s.artist), 'adatok');
+  console.assert(new Set(SONGS.map(s => s.n)).size === SONGS.length, 'egyedi azonosítók');
   console.log('Tesztek lefutottak.');
 }
 </script>
