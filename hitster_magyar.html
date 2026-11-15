@@ -33,6 +33,9 @@
   .card { width: 104px; min-height: 104px; padding: 8px; border-radius: 10px; background: #f6c945; color: #1b1630;
           display: flex; flex-direction: column; justify-content: center; text-align: center; }
   .card b { font-size: 1.5rem; }
+  .card { position: relative; }
+  .card .ord { position: absolute; top: 4px; right: 4px; min-width: 20px; height: 20px; border-radius: 10px;
+               background: #1b1630; color: #fff; font-size: .7rem; font-weight: 700; line-height: 20px; text-align: center; }
   .card.start { background: #fff3c4; outline: 4px solid #4fc3f7; outline-offset: -4px; }
   .card .tag { font-size: .65rem; font-weight: 700; text-transform: uppercase; color: #1976a8; }
   .card small { font-size: .72rem; line-height: 1.2; }
@@ -1502,8 +1505,14 @@ function isCorrect(cards, slot, year) {
 function newGame() {
   const pack = $('packSel').value;
   try { localStorage.setItem('hitster-pakli', JSON.stringify(pack)); } catch (e) {}
-  const deck = shuffle(packPool(pack).map(s => s.n));
+  // Játékokon átívelően: amíg van még nem hallott dal, csak azokból húz.
+  const pool = packPool(pack).map(s => s.n);
+  let fresh = pool.filter(n => !playedSet().has(n));
+  // takarékos: ha 30-nál kevesebb friss dal maradt, a pakli elölről indul.
+  if (fresh.length < 30) { fresh = pool; try { localStorage.setItem(PLAYED_KEY, JSON.stringify((readJSON(PLAYED_KEY) || []).filter(n => !pool.includes(n)))); } catch (e) {} }
+  const deck = shuffle(fresh);
   const start = deck.pop();
+  markPlayed(start);
   const keepWrong = $('keepWrong').checked;
   try { localStorage.setItem('hitster-pirosak', JSON.stringify(keepWrong)); } catch (e) {}
   G = { pack, start, cards: [start], ordered: true, keepWrong, wrong: [], missed: [], deck, round: 1, hits: 0, elapsed: 0, done: false };
@@ -1511,8 +1520,16 @@ function newGame() {
   show();
 }
 
+const PLAYED_KEY = 'hitster-lejatszott';
+const playedSet = () => new Set(readJSON(PLAYED_KEY) || []);
+function markPlayed(n) {
+  const s = playedSet(); s.add(n);
+  try { localStorage.setItem(PLAYED_KEY, JSON.stringify([...s])); } catch (e) {}
+}
+
 function drawCard() {
   G.current = G.deck.pop();
+  markPlayed(G.current);
   if ($('playBtn')) $('playBtn').textContent = '▶ Lejátszás';
   G.slot = null; G.revealed = false; G.started = false;
   lastTick = Date.now();
@@ -1577,11 +1594,14 @@ function render() {
   $('result').classList.toggle('hidden', !G.revealed);
 }
 
+// Hányadik dalként jött a kártya ebben a játékban (a kezdőkártyának nincs száma).
+const ordBadge = n => G.placed && G.placed[n] ? `<span class="ord">${G.placed[n]}</span>` : '';
+
 function renderMissed() {
   const missed = (G.missed || []).map(byNum);
   $('missedBox').classList.toggle('hidden', !missed.length);
   $('missed').innerHTML = missed.map(s =>
-    `<div class="card"><b>${s.year}</b><small>${s.artist}</small><small><i>${s.title}</i></small></div>`).join('');
+    `<div class="card">${ordBadge(s.n)}<b>${s.year}</b><small>${s.artist}</small><small><i>${s.title}</i></small></div>`).join('');
 }
 
 function renderTimeline(noSlots) {
@@ -1591,7 +1611,7 @@ function renderTimeline(noSlots) {
     if (!noSlots) html += `<button class="slot ${G.slot === i ? 'sel' : ''}" data-slot="${i}">+</button>`;
     const isStart = i < cards.length && cards[i].n === G.start;
     const tag = isStart ? 'kezdő' : i < cards.length && cards[i].wrong ? 'rossz helyen' : '';
-    if (i < cards.length) html += `<div class="card ${isStart ? 'start' : ''} ${cards[i].wrong ? 'wrong' : ''}">${tag ? `<span class="tag">${tag}</span>` : ''}<b>${cards[i].year}</b><small>${cards[i].artist}</small><small><i>${cards[i].title}</i></small></div>`;
+    if (i < cards.length) html += `<div class="card ${isStart ? 'start' : ''} ${cards[i].wrong ? 'wrong' : ''}">${ordBadge(cards[i].n)}${tag ? `<span class="tag">${tag}</span>` : ''}<b>${cards[i].year}</b><small>${cards[i].artist}</small><small><i>${cards[i].title}</i></small></div>`;
   }
   $('timeline').innerHTML = html;
 }
@@ -1600,6 +1620,7 @@ function reveal() {
   tick();
   const song = byNum(G.current);
   const ok = isCorrect(lineCards(), G.slot, song.year);
+  (G.placed = G.placed || {})[song.n] = G.round;
   if (ok) { G.cards.splice(G.slot, 0, song.n); G.hits++; }
   else if (G.keepWrong) { G.cards.splice(G.slot, 0, song.n); G.wrong.push(song.n); }
   else G.missed.push(song.n);
