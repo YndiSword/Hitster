@@ -21,13 +21,10 @@
   .hidden { display: none !important; }
   .muted { color: #9a93b8; font-size: .9rem; }
 
-  /* lejátszó: az iframe fölött átlátszatlan takaró, ami átengedi a koppintást */
-  .player { position: relative; height: 140px; border-radius: 12px; overflow: hidden; background: #000; }
-  .player iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
-  .cover { position: absolute; inset: 0; pointer-events: none; display: flex; flex-direction: column;
-           align-items: center; justify-content: center; gap: 6px;
-           background: radial-gradient(circle, #3a2a5c, #120f1c); text-align: center; }
-  .cover .big { font-size: 2.4rem; }
+  /* takarékos: a lejátszó láthatatlanul a lap alján ül (200×200 a YouTube minimuma), a saját gomb vezérli. */
+  .player { position: fixed; right: 0; bottom: 0; width: 200px; height: 200px; opacity: 0.01; pointer-events: none; z-index: -1; }
+  .player iframe { width: 100%; height: 100%; border: 0; }
+  .missed .card { background: #ffb3b3; }
 
   .timeline { display: flex; flex-wrap: wrap; align-items: stretch; gap: 6px; }
   .card { width: 104px; min-height: 104px; padding: 8px; border-radius: 10px; background: #f6c945; color: #1b1630;
@@ -70,17 +67,16 @@
 
     <div class="panel">
       <h2 id="turnTitle"></h2>
-      <div class="player">
-        <div id="yt"></div>
-        <div class="cover"><div class="big">▶</div><div>Koppints ide: lejátszás / megállítás</div></div>
-      </div>
       <div class="row">
-        <a id="ytLink" class="muted" target="_blank" rel="noopener">Nem szól? Megnyitás YouTube-on (a címet ott ne nézd meg!)</a>
-      </div>
-      <div class="row">
+        <button id="playBtn">▶ Lejátszás</button>
         <button id="skipBtn" class="ghost">Másik dal</button>
       </div>
+      <div id="missedBox" class="hidden">
+        <h2 style="margin-top:16px">Nem talált dalok</h2>
+        <div class="timeline missed" id="missed"></div>
+      </div>
     </div>
+    <div class="player"><div id="yt"></div></div>
 
     <div class="panel">
       <h2>Idővonal</h2>
@@ -436,7 +432,10 @@ function playSong(id) {
   player = new YT.Player('yt', {
     videoId: id,
     playerVars: { autoplay: 1, playsinline: 1, rel: 0 },
-    events: { onStateChange: e => { if (e.data === YT.PlayerState.PLAYING) startClock(); } }
+    events: { onStateChange: e => {
+      if (e.data === YT.PlayerState.PLAYING) startClock();
+      $('playBtn').textContent = e.data === YT.PlayerState.PLAYING ? '⏸ Szünet' : '▶ Lejátszás';
+    } }
   });
 }
 function stopSong() { try { player && player.stopVideo(); } catch (e) {} loadedId = null; }
@@ -472,13 +471,14 @@ function isCorrect(cards, slot, year) {
 function newGame() {
   const deck = shuffle(SONGS.map(s => s.n));
   const start = deck.pop();
-  G = { start, cards: [start], deck, round: 1, hits: 0, elapsed: 0, done: false };
+  G = { start, cards: [start], missed: [], deck, round: 1, hits: 0, elapsed: 0, done: false };
   drawCard();
   show();
 }
 
 function drawCard() {
   G.current = G.deck.pop();
+  if ($('playBtn')) $('playBtn').textContent = '▶ Lejátszás';
   G.slot = null; G.revealed = false; G.started = false;
   lastTick = Date.now();
   save();
@@ -509,6 +509,8 @@ const statusHTML = () =>
 
 function render() {
   $('scores').innerHTML = statusHTML();
+  renderMissed();
+  $('playBtn').disabled = G.done;
 
   if (G.done) {
     const rec = readJSON(RECORD_KEY);
@@ -529,7 +531,6 @@ function render() {
   $('turnTitle').textContent = `${G.round}. dal`;
   const song = byNum(G.current);
   playSong(song.yt);
-  $('ytLink').href = `https://www.youtube.com/watch?v=${song.yt}`;
 
   renderTimeline(G.revealed);
   $('hint').classList.toggle('hidden', G.revealed);
@@ -539,6 +540,13 @@ function render() {
   $('nextBtn').textContent = G.round >= ROUNDS ? 'Eredmény' : 'Következő dal';
   $('nextBtn').classList.toggle('hidden', !G.revealed);
   $('result').classList.toggle('hidden', !G.revealed);
+}
+
+function renderMissed() {
+  const missed = (G.missed || []).map(byNum);
+  $('missedBox').classList.toggle('hidden', !missed.length);
+  $('missed').innerHTML = missed.map(s =>
+    `<div class="card"><b>${s.year}</b><small>${s.artist}</small><small><i>${s.title}</i></small></div>`).join('');
 }
 
 function renderTimeline(noSlots) {
@@ -556,7 +564,7 @@ function reveal() {
   tick();
   const song = byNum(G.current);
   const ok = isCorrect(sortedCards(), G.slot, song.year);
-  if (ok) { G.cards.push(song.n); G.hits++; }
+  if (ok) { G.cards.push(song.n); G.hits++; } else G.missed.push(song.n);
   G.revealed = true;
   $('result').innerHTML =
     `<div class="${ok ? 'ok' : 'bad'}"><b>${ok ? 'Talált! A kártya az idővonaladra került.' : 'Nem jó helyre került.'}</b></div>
@@ -603,6 +611,10 @@ $('revealBtn').onclick = reveal;
 $('nextBtn').onclick = next;
 $('skipBtn').onclick = () => { tick(); drawCard(); render(); };
 $('quitBtn').onclick = showMenu;
+$('playBtn').onclick = () => {
+  if (!player || !player.getPlayerState) return;
+  try { player.getPlayerState() === YT.PlayerState.PLAYING ? player.pauseVideo() : player.playVideo(); } catch (e) {}
+};
 showMenu();
 
 // Ellenőrzés a konzolba: runTests()
