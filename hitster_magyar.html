@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hitster – magyar kiadás</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, sans-serif; background: #14121f; color: #f2eefc; }
+  main { max-width: 720px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 1.5rem; margin: 8px 0 16px; }
+  h2 { font-size: 1.15rem; margin: 0 0 10px; }
+  button { font: inherit; border: 0; border-radius: 10px; padding: 12px 18px; min-height: 48px;
+           background: #e8467c; color: #fff; font-weight: 600; cursor: pointer; }
+  button.ghost { background: #2c2840; color: #f2eefc; }
+  button:disabled { opacity: .4; cursor: default; }
+  input { font: inherit; padding: 10px; border-radius: 8px; border: 1px solid #443d63; background: #1e1b2e; color: inherit; width: 100%; }
+  label { display: block; margin: 10px 0 4px; color: #b9b2d6; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+  .panel { background: #1e1b2e; border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+  .hidden { display: none !important; }
+  .muted { color: #9a93b8; font-size: .9rem; }
+
+  /* lejátszó: az iframe fölött átlátszatlan takaró, ami átengedi a koppintást */
+  .player { position: relative; height: 140px; border-radius: 12px; overflow: hidden; background: #000; }
+  .player iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .cover { position: absolute; inset: 0; pointer-events: none; display: flex; flex-direction: column;
+           align-items: center; justify-content: center; gap: 6px;
+           background: radial-gradient(circle, #3a2a5c, #120f1c); text-align: center; }
+  .cover .big { font-size: 2.4rem; }
+
+  .timeline { display: flex; flex-wrap: wrap; align-items: stretch; gap: 6px; }
+  .card { width: 104px; min-height: 104px; padding: 8px; border-radius: 10px; background: #f6c945; color: #1b1630;
+          display: flex; flex-direction: column; justify-content: center; text-align: center; }
+  .card b { font-size: 1.5rem; }
+  .card.start { background: #fff3c4; outline: 4px solid #4fc3f7; outline-offset: -4px; }
+  .card .tag { font-size: .65rem; font-weight: 700; text-transform: uppercase; color: #1976a8; }
+  .card small { font-size: .72rem; line-height: 1.2; }
+  .slot { width: 34px; min-height: 104px; padding: 0; border-radius: 10px; background: #2c2840; border: 2px dashed #5a5180; color: #b9b2d6; font-size: 1.3rem; }
+  .slot.sel { background: #e8467c; border-color: #e8467c; color: #fff; }
+
+  .reveal { font-size: 1.1rem; line-height: 1.5; }
+  .ok { color: #6be39a; } .bad { color: #ff7b7b; }
+  .scores { display: flex; gap: 8px; flex-wrap: wrap; }
+  .scores span { background: #2c2840; padding: 6px 10px; border-radius: 8px; font-size: 1rem; }
+  .final { font-size: 1.3rem; line-height: 1.6; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Hitster – magyar kiadás</h1>
+
+  <!-- BEÁLLÍTÁS -->
+  <section id="setup" class="panel">
+    <h2>Szóló játék</h2>
+    <p>Kapsz egy felfordított kezdőkártyát, utána 10 dalt kell az idővonaladon a helyére tenned. Számít, hány sikerül, és mennyi idő alatt.</p>
+    <p id="record" class="muted"></p>
+    <div class="row">
+      <button id="startBtn">Új játék</button>
+      <button id="resumeBtn" class="ghost hidden">Mentett játék folytatása</button>
+    </div>
+    <p class="muted">308 dal a magyar kiadásból, YouTube-ról. Ha egy videó nem indul el, a „Másik dal” gomb újat húz, a kör nem vész el. Az óra akkor indul, amikor a dal megszólal, és a felfedésnél áll meg. A kezdőkártyát kék keret jelöli.</p>
+  </section>
+
+  <!-- JÁTÉK -->
+  <section id="game" class="hidden">
+    <div class="panel">
+      <div class="scores" id="scores"></div>
+    </div>
+
+    <div class="panel">
+      <h2 id="turnTitle"></h2>
+      <div class="player">
+        <div id="yt"></div>
+        <div class="cover"><div class="big">▶</div><div>Koppints ide: lejátszás / megállítás</div></div>
+      </div>
+      <div class="row">
+        <a id="ytLink" class="muted" target="_blank" rel="noopener">Nem szól? Megnyitás YouTube-on (a címet ott ne nézd meg!)</a>
+      </div>
+      <div class="row">
+        <button id="skipBtn" class="ghost">Másik dal</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Idővonal</h2>
+      <p class="muted" id="hint">Koppints arra a résre, ahová szerinted a dal tartozik.</p>
+      <div class="timeline" id="timeline"></div>
+      <div class="row">
+        <button id="revealBtn" disabled>Felfedés</button>
+      </div>
+      <div id="result" class="reveal hidden"></div>
+      <div class="row">
+        <button id="nextBtn" class="hidden">Következő dal</button>
+      </div>
+    </div>
+
+    <div class="row"><button id="quitBtn" class="ghost">Kilépés a menübe</button></div>
+  </section>
+</main>
+
+<script>
+// Forrás: github.com/andygruber/songseeker-hitster-playlists – hitster-hu-aaae0003.csv
+// Formátum: kártyaszám|előadó|év|cím|YouTube-azonosító
+const RAW = `1|Billy Joel|1983|Uptown Girl|H6M0EulApMM
+2|Scatman John|1995|Scatman (Ski-Ba-Bop-Ba-Dop-Bop)|VnULE-d14TA
+3|The B-52's|1989|Love Shack|7puAydZ5Fbo
+4|Omega|1974|Nem tudom a neved|X-cEwyJ0ULc
+5|Black Eyed Peas & J Balvin|2019|Ritmo|nKGJ_7WBREU
+6|Imagine Dragons|2017|Believer|doTaxdlF9Zs
+7|The Killers|2008|Human|bRXTMuH2WVc
+8|Soho Party|1998|Az éjjel soha nem érhet véget|x5r5wyxVVv4
+9|Britney Spears|1998|Baby One More Time|fEfvTTJNeAY
+10|KFT|1984|Afrika|Sl2Gr_rMVWw
+11|Máté Péter|1979|Egy darabot a szívemből|CSlP38uGQ4g
+12|Carpe Diem|1997|Álomhajó|pJjwLnuxAEg
+13|Robin S.|1992|Show Me Love|LWDQxZE4dBs
+14|Inner Circle|1992|Sweat (A La La La La Song)|AdIer7rKyq0
+15|United|1999|Hófehér jaguár|v6Z5HzbMC2Q
+16|David Guetta & Sia|2011|Titanium|UG_pMlxnGFw
+17|Pokolgép|1991|Adj új erőt|fKMZctAxwWA
+18|Mr. President|1996|Coco Jamboo|_Jl-QpJNKiQ
+19|Ava Max|2020|Kings & Queens|Gy_ExjhjA-4
+20|Stealers Wheel|1973|Stuck in the Middle with You|ln7Vn_WKkWU
+21|The Weeknd|2019|Save Your Tears|RmYCOm4ehKs
+22|Shawn Mendes|2017|There's Nothing Holding Me Back|Ztdc7TcPdAA
+23|Vincze Viktória|1974|Hány éjjel vártam|ES95TXXStPg
+24|Felső Tízezer|2015|Süllyedő hajó|2tT2tE0CSv4
+25|*NSYNC|2000|Bye Bye Bye|VsUrajziFRc
+26|Kylie Minogue|2001|Can't Get You Out Of My Head|uYANAvwvPBg
+27|Bagossy Brothers Company|2019|Olyan Ő|cNQOeTxp6us
+28|Beatrice|1990|8 óra munka|PzuDJXP1Too
+29|Kesha|2009|TiK ToK|u5uSlUKBEDc
+30|Mike Oldfield|1983|Moonlight Shadow|9uYF95jR_ME
+31|Anti Fitness Club|2012|Mennyország|mXjDQzTe7LE
+32|Ihász Gábor|1977|Elszáll a gondom|FQAKdInhEhg
+33|Midnight Oil|1987|Beds Are Burning|zNW2XkvaL6U
+34|Bonnie Tyler|1983|Total Eclipse Of The Heart|fSeFxzeo5Ts
+35|Neoton Família|1981|Kétszázhúsz felett|7fzGqMhvF2E
+36|Beatrice|1988|Azok a boldog, szép napok|ryaePVNhb-U
+37|UFO|1996|Szerelemdoktor|ozjpolYtKJ0
+38|Robert Palmer|1988|Simply Irresistible|arrDCLdMqvg
+39|Carl Douglas|1974|Kung Fu Fighting|it3E6vtExSE
+40|Follow The Flow|2021|Tavasz|IDunlA6T8qk
+41|Smash Mouth|1999|All Star|8ay_BkRuv-o
+42|Császár Előd|1996|Tiltott szerelem|ZZ2kPES2ij8
+43|Bikini|1989|Közeli helyeken|jsg9hNOYdf0
+44|Daddy Yankee|2004|Gasolina|GJP9ZTsgxJs
+45|Baccara|1977|Yes Sir, I Can Boogie|cakuOGmna7I
+46|Taio Cruz|2010|Dynamite|3MrY_BwLChk
+47|Depeche Mode|1981|Just Can't Get Enough|jON3_RHKSls
+48|Baby Gabi & Lányi Lala|2003|Őrült szerelem|_cgrXLluy_E
+49|4F Club|1996|Balatoni láz|Frk6jM3Rgcs
+50|Caramel|2010|Lélekdonor|cGvTIA3Jbs4
+51|Ben E. King|1961|Stand By Me|eJ4i-QbXG54
+52|ByeAlex és a Slepp|2020|Így hagysz el|5fbr0_3qdMw
+53|Iggy Azalea feat. Charli XCX|2014|Fancy|e--gtapgvmc
+54|Harold Faltermeyer|1985|Axel F|O7CaEWR_Kdk
+55|Gloria Gaynor|1978|I Will Survive|FHhZPp08s74
+56|Lady Gaga|2009|Bad Romance|QdaG6pDOz5A
+57|TNT|2001|Kicsi gesztenye|4oaBYB1Qr4M
+58|Justin Timberlake|2016|Can't Stop The Feeling!|6p3E7OMw52g
+59|Nox|2003|Százszor ölelj még|ctY9PLx0NgA
+60|Luis Fonsi & Daddy Yankee|2017|Despacito|FXovf5dsRTw
+61|Dolly Parton|1980|9 to 5|E4OzdyxbOuU
+62|Color|1977|Fényes kövek|LXoIDV6bXmU
+63|Cutting Crew|1986|(I Just) Died In Your Arms|2wf-MNzSbpA
+64|Edda Művek|1985|A kör|dkV3DLCQnMw
+65|J Balvin & Willy William|2017|Mi Gente|uFuAHzHOGYQ
+66|Kelemen Kabátban|2013|Nyári dallam|x_BVrq9baRY
+67|Green Day|2004|American Idiot|VyV54YwPAkk
+68|Backstreet Boys|1997|Everybody (Backstreet's Back)|J47YIH1XCGE
+69|Evanescence|2003|Bring Me To Life|-eGM0IJc70Y
+70|Belinda Carlisle|1987|Heaven Is a Place on Earth|8Va1IendJsA
+71|Taylor Swift|2014|Shake It Off|H59xVMF4zxE
+72|Jessie J, Ariana Grande & Nicki Minaj|2014|Bang Bang|4bMhBtPZtv4
+73|Zoltán Erika|1987|Szerelemre születtem|WHZKxd7NW3s
+74|T. Rex|1971|Bang A Gong (Get It On)|cp1m4B3HRhg
+75|Szandi|1991|Tinédzser l'amour|bgG_vfEvHUo
+76|Elvis Presley|1960|It's Now or Never|rgsKm8Ib8No
+77|Konyha|2020|Földrevaló|u8huBYEwmtw
+78|The Corrs|1998|What Can I Do?|RibtqL3Y0Cg
+79|Napoleon Boulevard|1987|Júlia nem akar a földön járni|4ugOe7GXhGE
+80|George Michael|1987|Faith|ORJKRYao4x8
+81|Komár László|1983|No Miss|CQHRVG7qeCo
+82|B.o.B feat. Hayley Williams|2010|Airplanes|pfEZW-1eDl8
+83|Lesley Gore|1963|It's My Party|_NpsUiKBEes
+84|Aerosmith|1993|Cryin'|J8zdiovUSGQ
+85|Halott Pénz feat. Hősök|2019|Több türelem|-XhE-e3Xqtg
+86|Janicsák Veca|2011|Labirintus|ls0q411_wnw
+87|Groovehouse|2001|Hajnal|u25VH1SG-WI
+88|Rúzsa Magdolna|2018|Hazatalálsz|n_crxOPvIRU
+89|Zámbó Jimmy|2000|Dalban mondom el|G9ybS43f6uQ
+90|Simon & Garfunkel|1965|The Sound of Silence|bjkPQYWNTlg
+91|Pa-Dö-Dő|1990|Kiabálj|5BwLFQwWPYc
+92|Loona|1998|Vamos A La Playa|ueF0JPjBUi8
+93|Demjén Ferenc|1993|Hogyan tudnék élni nélküled|ryrFbuMqm6Y
+94|Edda Művek|1980|Álmodtam egy világot|XhcQup4bd0w
+95|Emergency House|1997|Dübörög a ház|6dlbNZxniZk
+96|The White Stripes|2003|Seven Nation Army|D_QLxj8jCF0
+97|Robbie Williams|2000|Rock DJ|ZLyyT9yW9kA
+98|Rudimental|2018|These Days|v9I83RpXZ3o
+99|Benny Benassi|2002|Satisfaction|HYVWhwkERcQ
+100|Patti Smith|1978|Because the Night|YDJLjRWFJy0
+101|Flo Rida|2012|Whistle|6Y24X4oTQLA
+102|Szinetár Dóra|1991|Mindenhol|Ii9IfadKgL4
+103|Quimby|2009|Ajjajjaj|AHFAZYcBbQk
+104|V-Tech|1998|Éjfél után|8o9Cs9Su9Qk
+105|Sonny & Cher|1967|The Beat Goes On|7F6D5hLkOqo
+106|Demjén Ferenc|1987|Szerelem első vérig|1tqKWDTwrHU
+107|Bon-Bon|2002|Valami Amerika|m1W0USyGOPA
+108|Madonna|1984|Like a Virgin|j5Y3u2D8kxg
+109|Roxette|1994|Sleeping In My Car|UJ6ut9xV4Gs
+110|Christie|1970|Yellow River|KueMOCJFX9A
+111|ABBA|1976|Money, Money, Money|1LPNuFkteI8
+112|Follow The Flow|2023|Szélcsend|tJwPrO3Kcls
+113|Wellhello|2018|Nem olyan lány|O-uk9Il-BL8
+114|Zalatnay Sarolta|1970|Nem vagyok én apáca|iGfsMOM8mUI
+115|Kungs|2021|Never Going Home|pQSQapdLwJQ
+116|Ike & Tina Turner|1973|Nutbush City Limits|DbivX78Degg
+117|Don Omar feat. Lucenzo|2010|Danza Kuduro|EKjdR-5XKYs
+118|Magic!|2013|Rude|3WzamI8QD2s
+119|Village People|1978|Y.M.C.A.|RN8Li7kYNnw
+120|Elton John & Kiki Dee|1976|Don't Go Breaking My Heart|VHK5k2ieudc
+121|Panic! at the Disco|2018|High Hopes|GJY8OMJXRAk
+122|Avicii|2013|Wake Me Up|2NiyrtYegso
+123|The Nolans|1979|I'm in the Mood for Dancing|-cI9VJbFZaQ
+124|Horváth Tamás|2014|Beléd estem|T_27F9bG05E
+125|The Rolling Stones|1973|Angie|aVLBF-UKevY
+126|Ini Kamoze|1994|Here Comes the Hotstepper|354zVBILYPM
+127|Lola|2006|Hallja meg a világ|Wa81uw2zdzs
+128|Diana Ross|1980|I'm Coming Out|AGO19YOaw6U
+129|The Pussycat Dolls|2005|Don't Cha|rDBck1REfBc
+130|Take That|1995|Back For Good|wdOwlQZmLCk
+131|MC Hammer|1990|U Can't Touch This|gDCRrvtY78g
+132|Bruno Mars|2010|Just the Way You Are|HBzyuCda2RI
+133|Edward Maya & Vika Jigulina|2009|Stereo Love|BLukLvY8Mv0
+134|TNT|1997|Titkos üzenet|-bzvB8aPszw
+135|Bloodhound Gang|1999|The Bad Touch|523Lqlk4fm8
+136|Krisz Rudi|2002|Homokba rajzolt szerelem|n3x8G0qsMsE
+137|AC/DC|1990|Thunderstruck|lhg9bYNLvOg
+138|Valmar|2023|Éget a nap|QcOf-SQb490
+139|Hip Hop Boyz|1997|Megbántottak|TlR49RV2p5M
+140|Spin Doctors|1991|Two Princes|a748-dgSB10
+141|Oláh Ibolya|2005|Magyarország|6vTF980GNdg
+142|Crystal|2006|Te vagy a jel|tu9NqmOTsRk
+143|V-Tech|2004|Homokba írt szerelem|WiSY8NBNNgI
+144|The Ronettes|1963|Be My Baby|QBDem6bffyo
+145|Michael Gray|2004|The Weekend|uDGJ9DyF25I
+146|ABBA|1975|Mamma Mia|KMViJKmAV4M
+147|The Jackson 5|1970|ABC|niXNQ5dEcEA
+148|Azahriah|2023|3korty|MEG3zuAaPco
+149|Manuel|2023|Toxic|YHH2FoI2N5w
+150|Galantis|2016|No Money|LsCHjlYw2oM
+151|Daddy Yankee & Snow|2019|Con Calma|GQwj_FRntp8
+152|Justin Timberlake|2006|SexyBack|g_V6wqBlADw
+153|Leona Lewis|2007|Bleeding Love|CFJtRiKgLhE
+154|Bikini|1985|Mielőtt elmegyek|EjI3PdJOjcU
+155|R-GO|1985|Szeretlek is + nem is|O3WJwT4XjqU
+156|The Kid LAROI & Justin Bieber|2021|Stay|XfEMj-z3TtA
+157|Hooligans|2003|Királylány|9K33KW8pX2I
+158|Gala|1996|Freed from Desire|Qvu033SBMYU
+159|Olivia Newton-John|1981|Physical|4LjNxtwf7jo
+160|Barbra Streisand|1980|Woman in Love|ryGlgkvqzKE
+161|Michael Jackson|1982|Billie Jean|Kr4EQDVETuA
+162|The Communards|1986|Don't Leave Me This Way|O-M2RWPRN9E
+163|Hevesi Tamás|1994|Ezt egy életen át kell játszani|01mo4KkDFMo
+164|Tátrai Band|1991|A küszöbön túl|dmiraUIfs1k
+165|Republic|1995|Szállj el kismadár|T1YWygc01Qc
+166|Iggy Pop|1977|The Passenger|1r08Ca8fk5Y
+167|One Direction|2013|Story Of My Life|8M3Vlnu_i3c
+168|Ákos|1997|Ilyenek voltunk|WdKeQCTAWtY
+169|Fiesta|2001|Angelina|DITNkXvd2IU
+170|Wellhello|2015|Apuveddmeg|zL70WeLNq4E
+171|will.i.am feat. Britney Spears|2013|Scream & Shout|a5D8CTt-tfs
+172|The Cardigans|1996|Lovefool|c0fHs7THj4k
+173|Bonnie Tyler|1984|Holding Out for a Hero|lLFL4hyXV4U
+174|Calvin Harris|2014|Summer|KSgKKSny0Qo
+175|Exotic|1988|Nézz rám, tizedes|zrNX2dz8SGI
+176|Máté Péter|1982|Zene nélkül mit érek én?|NKzWdE4YOTY
+177|Meghan Trainor|2022|Made You Look|79vxRvYqeT4
+178|Kelis|2003|Milkshake|pVfFPuUYRXY
+179|Cascada|2009|Evacuate the Dancefloor|FrGiD2yompY
+180|Halott Pénz|2016|Darabokra törted a szívem|suJCZ_CUy-g
+181|Adele|2015|Hello|Ei8UnOPJX7w
+182|Christina Aguilera|2002|Beautiful|f1zLSpzCh9E
+183|PSY|2012|Gangnam Style|4AgDYTuZWOw
+184|Calvin Harris feat. Pharrell Williams, Katy Perry & Big Sean|2017|Feels|fqqcXP1D0Fw
+185|Ámokfutók|1998|Van valami|lBo13Ygs2No
+186|Robbie Williams|1997|Angels|ezvBR_jakk0
+187|Bereczki Zoltán|2010|Kerek egész|WKmzYjMBrRo
+188|September|2006|Cry for You|hdIV_3IOQlM
+189|Neoton Família|1979|Santa Maria|24L4H739Pys
+190|Szécsi Pál|1976|Carolina|MJQOFUJ0irw
+191|Atomic Kitten|2001|Whole Again|JyghDKI9fD8
+192|Vengaboys|1998|Boom, Boom, Boom, Boom!!|gM65SDMiXBE
+193|Charlie Puth feat. Selena Gomez|2016|We Don't Talk Anymore|ffqliB42Nh4
+194|Rita Ora|2018|Anywhere|F0w0--zLem0
+195|David Guetta feat. Kelly Rowland|2009|When Love Takes Over|zS_O0xHOsGM
+196|Ellie Goulding|2015|Love Me Like You Do|6eW99oNNRvI
+197|Beyoncé|2008|Single Ladies (Put A Ring On It)|4z-bOdAdias
+198|Pápai Joci|2017|Origo|Q232p_R_WpU
+199|R.E.M.|1991|Losing My Religion|Efa6BAWPm9o
+200|Koncz Zsuzsa|1973|Ha én rózsa volnék|tdAxItSzhu0
+201|Zanzibar|2001|Szólj már|xCskTwiTLN4
+202|Rapülők|1992|Áj lav jú|F-Q35XVSkv8
+203|Jonas Brothers|2019|Sucker|73ouhDibImA
+204|Happy Gang|1996|Fiatal szerelem|Byn2BzJaI2I
+205|Soho Party|1994|Gyere, táncolj!|AEhtfxVgKR8
+206|Rúzsa Magdolna|2018|Lesz, ahogy lesz|Klr_aAx1hp8
+207|Hungária|1974|Szerelemre hívlak|5QBTfeAItjE
+208|United|2002|Keserű méz|8QGkuB74dKk
+209|Zucchero|2002|Baila (Sexy Thing)|-PEWgTsaGCU
+210|The Zombies|1968|Time of the Season|N5MYs-vOZzE
+211|Eminem feat. Dido|2000|Stan|HIqQ0PfuPo8
+212|Tankcsapda|1999|Mennyország tourist|aKCT3MyKYjg
+213|Gwen Stefani|2004|What You Waiting For?|QwJR4zvhy_w
+214|Alicia Keys|2012|Girl on Fire|mVuSfxqpZa4
+215|Sean Kingston|2007|Beautiful Girls|_Wxfu7Th2S8
+216|Császár Előd|1995|Megtalállak még|Tu-wJMufsFM
+217|Deep Blue Something|1995|Breakfast At Tiffany's|ewo6AGUJaUA
+218|Shakira|2001|Whenever, Wherever|fFW91xwQFXk
+219|Zanzibar|2002|Szerelemről szó sem volt|cWOCx85Pi0o
+220|Cyndi Lauper|1983|Girls Just Want To Have Fun|gvLMhpzYic0
+221|George Michael|1992|Too Funky|AiXYgOmi2kI
+222|DJ Snake & Lil Jon|2013|Turn Down for What|MGuM2SlZBJ4
+223|KC & the Sunshine Band|1975|That's the Way (I Like It)|2UB8P0UImzw
+224|Vengaboys|1999|We're Going To Ibiza!|g4BGP7Hei_c
+225|Scissor Sisters|2006|I Don't Feel Like Dancin'|JBUs7P2kIAs
+226|Ámokfutók|1995|Szomorú szamuráj|DhnBFFF6BJY
+227|Katona Klári|1976|Savanyú a csokoládé|lo7QLwMXgLc
+228|Earth, Wind & Fire|1978|September|B2mmDEv0OEk
+229|Clean Bandit feat. Sean Paul & Anne-Marie|2016|Rockabye|mVw5KiGwqaQ
+230|The Rubettes|1974|Sugar Baby Love|C9TGlhaZACs
+231|Anastacia|2000|I'm Outta Love|-48dP1VwgNg
+232|Majka|2012|Belehalok|bAHGOnYq34A
+233|Ihász Gábor|1989|Múlnak a gyermekévek|qYdlm2XFtQc
+234|Shakira feat. Wyclef Jean|2006|Hips Don't Lie|p3pEe6aAJ4k
+235|Bobby McFerrin|1988|Don't Worry Be Happy|AFDOSq6Wxa0
+236|Sia|2014|Chandelier|uzaYLK3k0DQ
+237|Bonanza Banzai|1989|Induljon a banzáj!|9AMXl-zzSdQ
+238|Karthago|1981|Requiem|BS2qO-gpoTo
+239|Király Linda|2003|Szerelem utolsó vérig|I8-uGZMeAeM
+240|Eric Carmen|1975|All By Myself|h0KdR8bKHNQ
+241|Baby Sisters|1999|Szeresd a testem|9j07O37yNxo
+242|Wolf Kati|2011|Szerelem, miért múlsz?|WYNF-lf-zH4
+243|Depeche Mode|1990|Enjoy the Silence|ojvldIzbaMo
+244|Kate Ryan|2008|Ella, elle l'a|jqw4g3QaHWY
+245|The Mamas & The Papas|1965|California Dreamin'|oU6uUEwZ8FM
+246|Punnany Massif|2011|Élvezd|9yU2iHQjqtw
+247|Betonhofi|2022|Bagira|Xao8pLbPCcA
+248|Zalatnay Sarolta|1974|Hosszú, forró nyár|NscIV_GkyRY
+249|Bob Sinclar feat. Gary Pine|2005|Love Generation|h_7P0O-RSiE
+250|Michael Jackson & Janet Jackson|1995|Scream|8k1yj46xH24
+251|Alex Gaudino feat. Crystal Waters|2007|Destination Calabria|a7uIJkDydjA
+252|M People|1993|Moving on Up|cQQlzn_wrGs
+253|Horváth Tamás|2023|Fehér holló|ts6nec1aiX8
+254|Elefánt|2021|Kár|J89M8twtEUE
+255|Apostol|1978|Nehéz a boldogságtól búcsút venni|sOsF0CgFp6k
+256|Crystal|2000|Két utazó|_8pSeViClsY
+257|Harry Styles|2020|Watermelon Sugar|KPM_BYl-EaQ
+258|Szandi|1990|Nyugi, doki|9G0-elKR-t0
+259|Fluor|2011|Mizu|t8ll4k0E6qc
+260|Kiss|1979|I Was Made For Lovin' You|12fJAnaif34
+261|The Righteous Brothers|1965|Unchained Melody|Zv8czIoAw5w
+262|Kozmix|2000|Angyal|_h2gRwZxoCM
+263|Gnarls Barkley|2006|Crazy|vBtvhPM2GHc
+264|Katy Perry|2008|I Kissed a Girl|usvTbqTHwyw
+265|Right Said Fred|1991|I'm Too Sexy|1l8KLXDhTMQ
+266|LMFAO|2011|Sexy and I Know It|evHIaUZ0KtQ
+267|Magna Cum Laude|2009|Pálinka dal|bmyDCdYqHTA
+268|Måneskin|2021|I Wanna Be Your Slave|0T-BCIFeqq8
+269|Szűcs Judith|1977|Táncolj még|TwV7iUPY0nk
+270|John Paul Young|1977|Love Is in the Air|ZWzWL-S05fg
+271|Carly Rae Jepsen|2012|Call Me Maybe|dlObDivWgx8
+272|Bonanza Banzai|1990|A jel|88ShGWL3QhI
+273|Katona Klári|1981|Vigyél el|sT-1VFH6Dps
+274|Rod Stewart|1978|Da Ya Think I'm Sexy?|6F9N-6ITFnA
+275|Europe|1986|The Final Countdown|4hj8M8XZpis
+276|The Pointer Sisters|1982|I'm So Excited|I57hkclh3kk
+277|Justin Bieber feat. Ludacris|2010|Baby|GqWYJT-iMTw
+278|The Temptations|1964|My Girl|szbI1vu-cCc
+279|Survivor|1982|Eye of the Tiger|067r16_aGr4
+280|The Weather Girls|1982|It's Raining Men|4x6leDGV7gs
+281|Korda György|1981|Reptér|ZSk2g0PZ91o
+282|ByeAlex és a Slepp|2023|Csokko|UfCZPjja2os
+283|Soulwave|2019|Minden tévedésem|jBuWiH72FSI
+284|Queen|1980|Another One Bites the Dust|bdf_ll68Z8o
+285|Rácz Gergő|2015|Csak állj mellém!|u0L7kJAgQBY
+286|Stevie Wonder|1985|Part-Time Lover|bgmMpT_m-t4
+287|ByeAlex|2012|Kedvesem|BSqXqfwV0lM
+288|Bon-Bon|1999|A sexepilem|1T2MmKeOkV4
+289|Bon Jovi|1986|Livin' On a Prayer|YBdyc1WDlBQ
+290|Azahriah|2022|Mind1|sn0-ENKao90
+291|Dzsúdló|2020|Lej|SWC3N6DnY24
+292|Berkes Olivér|2020|Évszakok|KcymBYrx1DM
+293|Halott Pénz|2013|Hello lányok|roH_WQBEo8Q
+294|Mark Ronson feat. Bruno Mars|2015|Uptown Funk|tYvFa2ARD24
+295|Locomotiv GT|1975|Egy elfelejtett szó|F_eVkdFucG4
+296|Varga Viktor|2011|Lehet zöld az ég|_SxEPTwAYTc
+297|Hungária|1980|Csókkirály|0RuyPtTgohE
+298|Rockwell|1984|Somebody's Watching Me|KFS9c852M_k
+299|Rihanna|2007|Umbrella|xXD5tltX9Pg
+300|Tracy Chapman|1988|Fast Car|IJ8i49EqgYI
+301|Rácz Gergő|2020|Mostantól|U0Rysu7nalM
+302|Korda György|1977|Lady N|GgBbCwIkHmg
+303|David Bowie|1972|Starman|aBKEt3MhNMM
+304|Madness|1983|Our House|GWubi_Eq0Ek
+305|Donna Summer|1979|Hot Stuff|0YLiTLmrMZA
+306|Soltész Rezső|1982|Szóljon hangosan az ének|NIux6VYzgBI
+307|Koncz Zsuzsa|1978|Keresem a szót|5w62kyfs_RI
+308|Honeybeast|2014|A legnagyobb hős|TMfL-0IwgtE`;
+
+const SONGS = RAW.split('\n').map(line => {
+  const [n, artist, year, title, yt] = line.split('|');
+  return { n: +n, artist, year: +year, title, yt };
+});
+const byNum = n => SONGS.find(s => s.n === n);
+
+const SAVE_KEY = 'hitster-hu-szolo';
+const RECORD_KEY = 'hitster-hu-rekord';
+const ROUNDS = 10;
+// G = { start, cards:[n], deck:[n], round, hits, current, slot, revealed, started, elapsed(ms), done }
+let G = null;
+let lastTick = 0;
+
+// YouTube IFrame API: ebből tudjuk meg, mikor szólal meg a dal.
+let player = null, ytReady = false, loadedId = null;
+window.onYouTubeIframeAPIReady = () => { ytReady = true; if (G && !G.done && !$('game').classList.contains('hidden')) render(); };
+(() => { const s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(s); })();
+
+function playSong(id) {
+  if (!ytReady || loadedId === id) return;
+  loadedId = id;
+  if (player) { player.loadVideoById(id); return; }
+  player = new YT.Player('yt', {
+    videoId: id,
+    host: 'https://www.youtube-nocookie.com',
+    playerVars: { autoplay: 1, playsinline: 1, rel: 0 },
+    events: { onStateChange: e => { if (e.data === YT.PlayerState.PLAYING) startClock(); } }
+  });
+}
+function stopSong() { try { player && player.stopVideo(); } catch (e) {} loadedId = null; }
+
+// Az óra az első megszólalástól a felfedésig megy.
+function startClock() {
+  if (!G || G.done || G.revealed || G.started) return;
+  G.started = true;
+  lastTick = Date.now();
+}
+
+const $ = id => document.getElementById(id);
+const shuffle = arr => { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; };
+const sortedCards = () => G.cards.map(byNum).sort((a, b) => a.year - b.year);
+const fmt = ms => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+
+function readJSON(key) { try { return JSON.parse(localStorage.getItem(key)); } catch (e) { return null; } }
+function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(G)); } catch (e) {} }
+function load() {
+  const g = readJSON(SAVE_KEY);
+  return g && Array.isArray(g.cards) && Array.isArray(g.deck) && !g.done ? g : null;
+}
+
+// Jobb-e az új eredmény: több találat, egyenlőnél rövidebb idő.
+const isBetter = (a, b) => !b || a.hits > b.hits || (a.hits === b.hits && a.elapsed < b.elapsed);
+
+// Jó-e a hely: a rés előtti kártya nem későbbi, a rés utáni nem korábbi (azonos év mindkét oldalon jó).
+function isCorrect(cards, slot, year) {
+  const before = cards[slot - 1], after = cards[slot];
+  return (!before || before.year <= year) && (!after || year <= after.year);
+}
+
+function newGame() {
+  const deck = shuffle(SONGS.map(s => s.n));
+  const start = deck.pop();
+  G = { start, cards: [start], deck, round: 1, hits: 0, elapsed: 0, done: false };
+  drawCard();
+  show();
+}
+
+function drawCard() {
+  G.current = G.deck.pop();
+  G.slot = null; G.revealed = false; G.started = false;
+  lastTick = Date.now();
+  save();
+}
+
+function show() {
+  $('setup').classList.add('hidden');
+  $('game').classList.remove('hidden');
+  lastTick = Date.now();
+  render();
+}
+
+// Az óra csak akkor megy, ha a dal már elindult, még nincs felfedve, és látszik a játék.
+function tick() {
+  const now = Date.now();
+  if (G && !G.done && G.started && !G.revealed && !$('game').classList.contains('hidden') && !document.hidden) {
+    G.elapsed += now - lastTick;
+    $('scores').innerHTML = statusHTML();
+  }
+  lastTick = now;
+}
+setInterval(tick, 500);
+setInterval(() => { if (G && !G.done) save(); }, 5000);
+document.addEventListener('visibilitychange', () => { lastTick = Date.now(); });
+
+const statusHTML = () =>
+  `<span>Dal: ${Math.min(G.round, ROUNDS)}/${ROUNDS}</span><span>Talált: ${G.hits}</span><span>⏱ ${fmt(G.elapsed)}</span>`;
+
+function render() {
+  $('scores').innerHTML = statusHTML();
+
+  if (G.done) {
+    const rec = readJSON(RECORD_KEY);
+    $('turnTitle').textContent = 'Vége!';
+    stopSong();
+    $('hint').classList.add('hidden');
+    $('revealBtn').classList.add('hidden');
+    $('skipBtn').disabled = true;
+    $('result').classList.remove('hidden');
+    $('result').innerHTML = `<div class="final"><b>${G.hits}/${ROUNDS}</b> találat, <b>${fmt(G.elapsed)}</b> alatt.<br>
+      ${G.newRecord ? '🏆 Új rekord!' : rec ? `Rekord: ${rec.hits}/${ROUNDS}, ${fmt(rec.elapsed)}` : ''}</div>`;
+    $('nextBtn').textContent = 'Új játék';
+    $('nextBtn').classList.remove('hidden');
+    renderTimeline(true);
+    return;
+  }
+
+  $('turnTitle').textContent = `${G.round}. dal`;
+  const song = byNum(G.current);
+  playSong(song.yt);
+  $('ytLink').href = `https://www.youtube.com/watch?v=${song.yt}`;
+
+  renderTimeline(G.revealed);
+  $('hint').classList.toggle('hidden', G.revealed);
+  $('revealBtn').classList.toggle('hidden', G.revealed);
+  $('revealBtn').disabled = G.slot === null;
+  $('skipBtn').disabled = G.revealed;
+  $('nextBtn').textContent = G.round >= ROUNDS ? 'Eredmény' : 'Következő dal';
+  $('nextBtn').classList.toggle('hidden', !G.revealed);
+  $('result').classList.toggle('hidden', !G.revealed);
+}
+
+function renderTimeline(noSlots) {
+  const cards = sortedCards();
+  let html = '';
+  for (let i = 0; i <= cards.length; i++) {
+    if (!noSlots) html += `<button class="slot ${G.slot === i ? 'sel' : ''}" data-slot="${i}">+</button>`;
+    const isStart = i < cards.length && cards[i].n === G.start;
+    if (i < cards.length) html += `<div class="card ${isStart ? 'start' : ''}">${isStart ? '<span class="tag">kezdő</span>' : ''}<b>${cards[i].year}</b><small>${cards[i].artist}</small><small><i>${cards[i].title}</i></small></div>`;
+  }
+  $('timeline').innerHTML = html;
+}
+
+function reveal() {
+  tick();
+  const song = byNum(G.current);
+  const ok = isCorrect(sortedCards(), G.slot, song.year);
+  if (ok) { G.cards.push(song.n); G.hits++; }
+  G.revealed = true;
+  $('result').innerHTML =
+    `<div class="${ok ? 'ok' : 'bad'}"><b>${ok ? 'Talált! A kártya az idővonaladra került.' : 'Nem jó helyre került.'}</b></div>
+     <div><b>${song.year}</b> – ${song.artist}: <i>${song.title}</i></div>`;
+  save();
+  render();
+}
+
+function next() {
+  if (G.done) { newGame(); return; }
+  if (G.round >= ROUNDS) {
+    G.done = true;
+    const rec = readJSON(RECORD_KEY);
+    G.newRecord = isBetter(G, rec);
+    if (G.newRecord) try { localStorage.setItem(RECORD_KEY, JSON.stringify({ hits: G.hits, elapsed: G.elapsed })); } catch (e) {}
+    save();
+    render();
+    return;
+  }
+  G.round++;
+  drawCard();
+  render();
+}
+
+function showMenu() {
+  if (G && !G.done) save();
+  stopSong();
+  $('game').classList.add('hidden'); $('setup').classList.remove('hidden');
+  $('resumeBtn').classList.toggle('hidden', !load());
+  const rec = readJSON(RECORD_KEY);
+  $('record').textContent = rec ? `Rekordod: ${rec.hits}/${ROUNDS}, ${fmt(rec.elapsed)} alatt.` : '';
+}
+
+$('timeline').addEventListener('click', e => {
+  const slot = e.target.closest('.slot');
+  if (!slot) return;
+  G.slot = +slot.dataset.slot;
+  startClock(); // takarékos: ha a lejátszó állapota nem jön meg (pl. hibás betöltés), legkésőbb a rés kiválasztásakor indul az óra.
+  render();
+});
+$('startBtn').onclick = newGame;
+$('resumeBtn').onclick = () => { G = load(); if (G) show(); };
+$('revealBtn').onclick = reveal;
+$('nextBtn').onclick = next;
+$('skipBtn').onclick = () => { tick(); drawCard(); render(); };
+$('quitBtn').onclick = showMenu;
+showMenu();
+
+// Ellenőrzés a konzolba: runTests()
+function runTests() {
+  const c = [{ year: 1980 }, { year: 1990 }];
+  console.assert(isCorrect(c, 0, 1975), 'elejére korábbi');
+  console.assert(!isCorrect(c, 0, 1985), 'elejére későbbi');
+  console.assert(isCorrect(c, 1, 1985), 'közé');
+  console.assert(isCorrect(c, 1, 1990), 'azonos év');
+  console.assert(isCorrect(c, 2, 2000), 'végére');
+  console.assert(!isCorrect(c, 2, 1970), 'végére korábbi');
+  console.assert(isBetter({ hits: 7, elapsed: 9e5 }, { hits: 6, elapsed: 1e5 }), 'több találat nyer');
+  console.assert(isBetter({ hits: 7, elapsed: 1e5 }, { hits: 7, elapsed: 2e5 }), 'egyenlőnél gyorsabb nyer');
+  console.assert(!isBetter({ hits: 7, elapsed: 3e5 }, { hits: 7, elapsed: 2e5 }), 'lassabb nem rekord');
+  console.assert(SONGS.length === 308 && SONGS.every(s => s.year > 1900 && s.yt), 'adatok');
+  console.log('Tesztek lefutottak.');
+}
+</script>
+</body>
+</html>
